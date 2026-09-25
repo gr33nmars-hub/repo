@@ -1,0 +1,56 @@
+.roulette-page { max-width: 1160px; margin: 0 auto; }
+.roulette-table { min-height: 340px; display: grid; grid-template-columns: minmax(260px, .9fr) minmax(290px, 1.1fr); align-items: center; gap: clamp(20px, 4vw, 54px); padding: 22px clamp(20px, 4vw, 47px); border: 1px solid #405346; background: #171e19; }
+.roulette-dial { position: relative; width: min(270px, 100%); aspect-ratio: 1; justify-self: center; display: grid; place-items: center; color: var(--color-brass); }
+.roulette-dial svg { width: 100%; height: 100%; overflow: visible; }
+.roulette-track { fill: #202922; stroke: #927c4f; stroke-width: 1.6; }
+.roulette-tick { fill: none; stroke: #9ca28f; stroke-width: 1.4; }
+.roulette-hub-ring { fill: #161d18; stroke: #8b764b; stroke-width: 1.5; }
+.roulette-hub { fill: #1d2d23; stroke: #455b47; stroke-width: 1; }
+.roulette-ball { position: absolute; top: 9%; left: calc(50% - 5px); width: 10px; height: 10px; border: 1px solid #f0eadb; border-radius: 50%; background: #f4f1e7; }
+.roulette-hub-copy { position: absolute; inset: 33%; display: grid; align-content: center; justify-items: center; gap: 5px; }
+.roulette-hub-copy strong { color: #eadba9; font-size: 19px; font-weight: 450; letter-spacing: -.03em; }
+.roulette-hub-copy span { color: #bcc6b9; font: 8px var(--mono); letter-spacing: .11em; }
+.roulette-dial.is-spinning { animation: noir-wheel-turn 880ms cubic-bezier(.15,.77,.23,1) both; }
+.roulette-betting { display: grid; gap: 10px; }
+.roulette-betting h2 { margin: 0; color: var(--color-ink); font-size: 19px; font-weight: 500; }
+.roulette-betting > p { max-width: 46ch; margin: 0; color: var(--color-muted); font-size: 11px; line-height: 1.55; }
+.roulette-choice-list { display: grid; gap: 7px; margin-top: 5px; }
+.roulette-choice { min-height: 43px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid #475047; background: #1b221c; color: #d8dcd1; font-size: 12px; text-align: left; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.roulette-choice:hover:not(:disabled) { border-color: #6d775f; background: #232a23; }
+.roulette-choice:disabled { opacity: .65; cursor: not-allowed; }
+.roulette-choice.is-selected { border-color: #a18b58; background: #28291f; color: var(--color-brass-strong); }
+.roulette-choice-marker { width: 12px; height: 12px; border: 1px solid currentColor; border-radius: 50%; }
+.roulette-choice--red .roulette-choice-marker { background: #9b5551; }
+.roulette-choice--black .roulette-choice-marker { background: #202320; }
+.roulette-choice--zero .roulette-choice-marker { background: #52745d; }
+.roulette-pending { margin: 12px 0 0; color: var(--color-muted); font-size: 11px; text-align: center; }
+.roulette-result { min-height: 75px; display: grid; grid-template-columns: 55px minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-top: 14px; padding: 10px 14px; border-top: 1px solid #465344; border-bottom: 1px solid #465344; animation: noir-wheel-result 190ms ease-out both; }
+.roulette-result-number { color: var(--color-brass-strong); font-size: 25px; font-weight: 450; text-align: center; }
+.roulette-result-copy { min-width: 0; display: grid; gap: 4px; }
+.roulette-result-copy strong { overflow-wrap: anywhere; color: var(--color-ink); font-size: 12px; font-weight: 500; }
+.roulette-result-copy span { color: var(--color-muted); font-size: 10px; }
+.roulette-result-money { display: grid; justify-items: end; gap: 5px; color: #c5c9be; font-size: 9px; white-space: nowrap; }
+.roulette-result-money strong { color: var(--color-ink); font: 11px var(--mono); }
+.roulette-result.is-positive .roulette-result-money strong { color: var(--color-emerald); }
+.roulette-result.is-negative .roulette-result-money strong { color: var(--color-danger); }
+
+@keyframes noir-wheel-turn { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
+@keyframes noir-wheel-result { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 920px) {
+  .roulette-table { grid-template-columns: 1fr; gap: 13px; }
+  .roulette-dial { width: min(220px, 55vw); }
+  .roulette-betting { max-width: 520px; width: 100%; justify-self: center; }
+}
+@media (max-width: 760px) {
+  .roulette-table { padding: 16px 13px; }
+  .roulette-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .roulette-choice { justify-content: center; gap: 7px; padding-inline: 6px; font-size: 10px; }
+  .roulette-choice-marker { width: 10px; height: 10px; flex: 0 0 auto; }
+  .roulette-result { grid-template-columns: 37px minmax(0, 1fr); gap: 9px; padding-inline: 5px; }
+  .roulette-result-number { font-size: 21px; }
+  .roulette-result-money { grid-column: 2; display: flex; justify-content: space-between; justify-items: start; white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .roulette-dial.is-spinning, .roulette-result { animation-duration: .01ms; animation-iteration-count: 1; }
+}

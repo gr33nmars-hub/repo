@@ -1,0 +1,56 @@
+@charset "UTF-8";
+
+@font-face {
+  font-family: Outfit;
+  src: url('./assets/Outfit-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  font-family: Outfit, 'Segoe UI', Arial, sans-serif;
+  color: #eee9df;
+  background: #101311;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums;
+  --ink: #101311;
+  --chalk: #eee9df;
+  --gold: #cfb77c;
+  --green: #93b99c;
+  --line: #343a32;
+  --serif: Outfit, 'Segoe UI', Arial, sans-serif;
+  --sans: Outfit, 'Segoe UI', Arial, sans-serif;
+  --mono: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --color-canvas: #101311;
+  --color-panel: #171b18;
+  --color-panel-raised: #1e231f;
+  --color-ink: #eee9df;
+  --color-muted: #a7aaa0;
+  --color-faint: #777e75;
+  --color-rule: #343a32;
+  --color-brass: #cfb77c;
+  --color-brass-strong: #e6d19c;
+  --color-emerald: #93b99c;
+  --color-danger: #d78d83;
+  --motion-room: 190ms;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; background: var(--color-canvas); scroll-behavior: smooth; }
+body { min-width: 320px; min-height: 100dvh; margin: 0; background: var(--color-canvas); }
+button, input { font: inherit; }
+button { color: inherit; }
+button:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--color-brass-strong); outline-offset: 3px; }
+::selection { color: #111510; background: #cfb77c; }
+#root { min-height: 100dvh; }
+.skip-link { position: fixed; z-index: 100; top: 8px; left: 8px; padding: 10px 14px; transform: translateY(-150%); border-radius: 3px; background: var(--color-ink); color: var(--color-canvas); }
+.skip-link:focus { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

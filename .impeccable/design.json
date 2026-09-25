@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-24T20:53:45Z",
+  "title": "Design System: NOIR Casino Club",
+  "extensions": {
+    "colorMeta": {
+      "canvas": { "role": "neutral", "displayName": "Club Canvas", "tonalRamp": ["#101311", "#171b18", "#20241f", "#2b302b", "#3a4039", "#555b52", "#787d75", "#a7aaa0"] },
+      "surface": { "role": "neutral", "displayName": "Ledger Surface", "tonalRamp": ["#171b18", "#1e231f", "#292f2a", "#393f39", "#50564f", "#6c726a", "#8a9087", "#b0b4ac"] },
+      "brass": { "role": "primary", "displayName": "Muted Brass", "tonalRamp": ["#242116", "#4b422e", "#6d6041", "#8f7e55", "#b19d6b", "#cfb77c", "#ddca99", "#eee0b9"] },
+      "emerald": { "role": "secondary", "displayName": "Muted Emerald", "tonalRamp": ["#17241b", "#293c2e", "#3f5945", "#58765f", "#76977c", "#93b99c", "#b4d2b9", "#d9e7da"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Outfit Display", "purpose": "Lobby and room headings." },
+      "body": { "displayName": "Outfit UI", "purpose": "Russian interface and explanatory copy." },
+      "label": { "displayName": "Cascadia Mono", "purpose": "Numeric limits and compact metadata." }
+    },
+    "shadows": [
+      { "name": "flat-shell", "value": "none", "purpose": "Shell and lobby hierarchy is tonal and border-led." }
+    ],
+    "motion": [
+      { "name": "room-arrive", "value": "190ms ease-out", "purpose": "Brief room transition; disabled under reduced motion." },
+      { "name": "control-feedback", "value": "160ms ease", "purpose": "Navigation and table-row hover/focus feedback." }
+    ],
+    "breakpoints": [
+      { "name": "desktop-min", "value": "920px" },
+      { "name": "companion-stack", "value": "920px" },
+      { "name": "compact-nav", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Current Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation-current",
+      "description": "Selected room in the persistent casino navigation.",
+      "html": "<button class=\"ds-nav-current\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 12h16M12 4v16\"/></svg><span>Лобби</span></button>",
+      "css": ".ds-nav-current { display: flex; align-items: center; gap: 11px; min-height: 42px; padding: 0 11px; border: 1px solid #64583c; background: #22241e; color: #e6d19c; font: 500 13px Outfit, sans-serif; text-align: left; } .ds-nav-current svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; } .ds-nav-current:focus-visible { outline: 2px solid #e6d19c; outline-offset: 3px; }"
+    },
+    {
+      "name": "Table Register Entry",
+      "kind": "custom",
+      "refersTo": "table-entry",
+      "description": "A real API table and wager limit as one keyboard-operable entry.",
+      "html": "<button class=\"ds-table-entry\"><span class=\"ds-table-icon\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3.5C10 6.3 4 9.8 4 14.2a4.6 4.6 0 0 0 4.7 4.8c1.4 0 2.5-.6 3.3-1.7.8 1.1 1.9 1.7 3.3 1.7a4.6 4.6 0 0 0 4.7-4.8c0-4.4-6-7.9-8-10.7Z\"/><path d=\"M12 17.3 9.7 21m2.3-3.7 2.3 3.7\"/></svg></span><span><strong>Блэкджек</strong><small>Карты против дилера</small></span><span class=\"ds-table-limit\">10–500</span><span>За стол →</span></button>",
+      "css": ".ds-table-entry { width: 100%; min-height: 92px; display: grid; grid-template-columns: 36px 1fr auto auto; align-items: center; gap: 12px; padding: 15px 10px; border: 0; border-bottom: 1px solid #343a32; background: #101311; color: #eee9df; text-align: left; transition: background 160ms ease; } .ds-table-entry:hover { background: #171c18; } .ds-table-entry:focus-visible { outline: 2px solid #e6d19c; outline-offset: 2px; } .ds-table-icon { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #535842; color: #cfb77c; } .ds-table-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; } .ds-table-entry strong, .ds-table-entry small { display: block; } .ds-table-entry small { margin-top: 4px; color: #a7aaa0; } .ds-table-limit { color: #e1dfd4; font: 11px 'Cascadia Mono', Consolas, monospace; }"
+    },
+    {
+      "name": "Player Ledger",
+      "kind": "card",
+      "refersTo": "account-ledger",
+      "description": "Compact account context sourced from local casino state.",
+      "html": "<section class=\"ds-ledger\"><small>ДЕМО-БАЛАНС</small><strong>1 250</strong><span>виртуальных фишек</span></section>",
+      "css": ".ds-ledger { display: grid; gap: 5px; padding: 17px 18px; border: 1px solid #51503d; background: #171b18; color: #eee9df; } .ds-ledger small { color: #a7aaa0; font-size: 9px; letter-spacing: .13em; } .ds-ledger strong { color: #e6d19c; font: 450 32px Outfit, sans-serif; letter-spacing: -.04em; } .ds-ledger span { color: #a7aaa0; font-size: 10px; }"
+    },
+    {
+      "name": "Lobby Table Count",
+      "kind": "chip",
+      "refersTo": "table-count",
+      "description": "Small count label attached to the API-fed table registry.",
+      "html": "<span class=\"ds-table-count\">3 стола</span>",
+      "css": ".ds-table-count { color: #a7aaa0; font: 10px 'Cascadia Mono', Consolas, monospace; }"
+    },
+    {
+      "name": "Retry Action",
+      "kind": "button",
+      "description": "Retry an API action or state refresh after a visible error.",
+      "html": "<button class=\"ds-retry\">Повторить</button>",
+      "css": ".ds-retry { min-height: 34px; padding: 0 10px; border: 1px solid #795951; background: #30211f; color: #f0d4ce; font: 500 11px Outfit, sans-serif; cursor: pointer; } .ds-retry:hover { background: #3a2825; } .ds-retry:focus-visible { outline: 2px solid #e6d19c; outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Ledger",
+    "overview": "The interface treats NOIR as a composed private club whose tables are easy to read and enter. A persistent navigation rail and a clear table register provide operational structure; the player ledger and recent rounds carry the real account context next to it. Visual character comes from dark green-black surfaces, fine dividing rules, Outfit's adaptable weights, and sparse brass and emerald accents.\n\nDepth stays tonal and mostly flat. The custom adult hostess illustration is a small authored identity element, while gameplay remains the primary experience. Functional transitions are brief and quiet; the interface stays legible at the minimum desktop window and honors reduced-motion preferences.",
+    "keyCharacteristics": ["Operate-first navigation and table selection.", "API-fed balances, limits, statistics, and history.", "Restrained color and flat, finely ruled surfaces."],
+    "rules": [
+      { "name": "The Real State Rule", "body": "Use color to clarify actual account, result, or selection state; never imply activity the API has not supplied.", "section": "colors" },
+      { "name": "The Readable Room Rule", "body": "Scale expressive titles for the current room; keep operational labels compact but comfortably readable.", "section": "typography" }
+    ],
+    "dos": ["Do keep the five existing routes stable: lobby, blackjack, slots, roulette, and history.", "Do keep backend state as the source for the player's balance, statistics, limits, and round results.", "Do keep icons in the shell and lobby within the authored SVG set.", "Do respect `prefers-reduced-motion` and keep transitions short."],
+    "donts": ["Don't invent live-player counts, online activity, recommendations, results, or account metrics.", "Don't turn the operating surface into a marketing landing page or decorative KPI dashboard.", "Don't use emoji as interface icons."]
+  }
+}

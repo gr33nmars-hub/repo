@@ -1,0 +1,18 @@
+[project]
+name = "noir-casino"
+version = "0.1.0"
+description = "Учебное казино на Python с архитектурой ООП"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Flet developer", email = "you@example.com" }
+]
+dependencies = [
+    "fastapi>=0.121.0",
+    "uvicorn[standard]>=0.38.0",
+]
+
+[dependency-groups]
+build = [
+    "pyinstaller>=6.16.0",
+]

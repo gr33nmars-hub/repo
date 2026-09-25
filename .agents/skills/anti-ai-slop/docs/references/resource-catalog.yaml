@@ -1,0 +1,36 @@
+resources:
+  - name: spec-kit
+    type: methodology
+    url: https://github.github.com/spec-kit/
+    use: spec-plan-tasks-implement workflow structure
+    verified_at: 2026-06-25
+    maintenance_status: active
+    license_checked: true
+  - name: codex-agents-md
+    type: documentation
+    url: https://developers.openai.com/codex/guides/agents-md
+    use: repository guidance conventions
+    verified_at: 2026-06-25
+    maintenance_status: active
+    license_checked: true
+  - name: github-ai-code-review
+    type: documentation
+    url: https://docs.github.com/en/copilot/tutorials/review-ai-generated-code
+    use: AI-generated code review checklist shape
+    verified_at: 2026-06-25
+    maintenance_status: active
+    license_checked: true
+  - name: semgrep
+    type: scanner
+    url: https://github.com/semgrep/semgrep
+    use: optional static analysis catalog entry
+    verified_at: 2026-06-25
+    maintenance_status: active
+    license_checked: true
+  - name: codeql
+    type: scanner
+    url: https://github.com/github/codeql
+    use: optional security analysis catalog entry
+    verified_at: 2026-06-25
+    maintenance_status: active
+    license_checked: true

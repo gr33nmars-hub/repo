@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "mdpr-narrative-review-v1",
+  "generatedBy": "mdpr-skill",
+  "suggestions": [
+    {
+      "type": "NARRATIVE_CLAIM_TITLE_WEAK",
+      "kind": "claim-title",
+      "generatedBy": "mdpr-skill",
+      "evidence": {
+        "sourcePath": "C:\\Users\\hcslab_523\\Documents\\anti-ai-slop\\docs\\mdpr-teaser\\teaser.md",
+        "markdownHeading": "Coherence gate reports score 100 with no findings"
+      },
+      "suggestion": {
+        "action": "rewrite-title-as-claim",
+        "text": "Rewrite \"Coherence gate reports score 100 with no findings\" as a claim title that states the takeaway before the evidence."
+      }
+    }
+  ]
+}

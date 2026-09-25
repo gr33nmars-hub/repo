@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "mdpr-narrative-review-v1",
+  "generatedBy": "mdpr-skill",
+  "suggestions": [
+    {
+      "type": "NARRATIVE_CLAIM_TITLE_WEAK",
+      "kind": "claim-title",
+      "generatedBy": "mdpr-skill",
+      "evidence": {
+        "sourcePath": "C:\\Users\\hcslab_523\\Documents\\anti-ai-slop\\README.md",
+        "markdownHeading": "Coherence Gate Currently Reports Score 100 With No Findings"
+      },
+      "suggestion": {
+        "action": "rewrite-title-as-claim",
+        "text": "Rewrite \"Coherence Gate Currently Reports Score 100 With No Findings\" as a claim title that states the takeaway before the evidence."
+      }
+    },
+    {
+      "type": "NARRATIVE_SECTION_FLOW_GAP",
+      "kind": "section-flow",
+      "generatedBy": "mdpr-skill",
+      "evidence": {
+        "sourcePath": "C:\\Users\\hcslab_523\\Documents\\anti-ai-slop\\README.md",
+        "markdownHeading": "Coherence Gate Currently Reports Score 100 With No Findings -> Review Contract -> Review Pipeline -> Highlights -> Quick Start -> Actual Logs -> Modes -> Review Materials -> Guardrail Pack -> Installation In Other Runtimes -> Claude Code -> Other Agent Runtimes -> Repository Layout -> GitHub About Metadata -> Boundaries -> Development"
+      },
+      "suggestion": {
+        "action": "add-section-transition",
+        "text": "Add a short transition or implication section so the deck explains why the evidence leads to the recommended action."
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "mdpr-accessibility-content-review-v1",
+  "generatedBy": "mdpr-skill",
+  "suggestions": [
+    {
+      "type": "ACRONYM_EXPANSION",
+      "kind": "acronym-expansion",
+      "generatedBy": "mdpr-skill",
+      "evidence": {
+        "sourcePath": "C:\\Users\\hcslab_523\\Documents\\anti-ai-slop\\docs\\mdpr-teaser\\teaser.md",
+        "acronym": "AI"
+      },
+      "suggestion": {
+        "text": "Expand AI on first use or add a short speaker note for audiences that may not know it."
+      },
+      "boundary": {
+        "mdprVisualAccessibilityAuthority": true
+      }
+    }
+  ]
+}

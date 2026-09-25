@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-labelledby="title desc">
+  <title id="title">Anti-AI Slop workflow</title>
+  <desc id="desc">Workflow from inventory to validation evidence and PR review.</desc>
+  <rect width="960" height="300" fill="#0f172a"/>
+  <text x="48" y="54" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Anti-AI Slop Workflow</text>
+  <text x="48" y="84" fill="#cbd5e1" font-family="Segoe UI, Arial, sans-serif" font-size="15">Spec-first review, implementation, and validation gates</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600">
+    <rect x="48" y="130" width="130" height="56" rx="8" fill="#1d4ed8"/>
+    <text x="113" y="164" fill="#ffffff" text-anchor="middle">Inventory</text>
+    <path d="M188 158 H228" stroke="#94a3b8" stroke-width="3"/>
+    <path d="M220 150 L232 158 L220 166" fill="none" stroke="#94a3b8" stroke-width="3"/>
+    <rect x="242" y="130" width="130" height="56" rx="8" fill="#0f766e"/>
+    <text x="307" y="154" fill="#ffffff" text-anchor="middle">Spec</text>
+    <text x="307" y="174" fill="#ccfbf1" text-anchor="middle" font-size="12">contract + scope</text>
+    <path d="M382 158 H422" stroke="#94a3b8" stroke-width="3"/>
+    <path d="M414 150 L426 158 L414 166" fill="none" stroke="#94a3b8" stroke-width="3"/>
+    <rect x="436" y="130" width="130" height="56" rx="8" fill="#7c3aed"/>
+    <text x="501" y="154" fill="#ffffff" text-anchor="middle">Tasks</text>
+    <text x="501" y="174" fill="#ede9fe" text-anchor="middle" font-size="12">traceable work</text>
+    <path d="M576 158 H616" stroke="#94a3b8" stroke-width="3"/>
+    <path d="M608 150 L620 158 L608 166" fill="none" stroke="#94a3b8" stroke-width="3"/>
+    <rect x="630" y="130" width="130" height="56" rx="8" fill="#b45309"/>
+    <text x="695" y="154" fill="#ffffff" text-anchor="middle">Validate</text>
+    <text x="695" y="174" fill="#ffedd5" text-anchor="middle" font-size="12">logs + evidence</text>
+    <path d="M770 158 H810" stroke="#94a3b8" stroke-width="3"/>
+    <path d="M802 150 L814 158 L802 166" fill="none" stroke="#94a3b8" stroke-width="3"/>
+    <rect x="824" y="130" width="88" height="56" rx="8" fill="#334155"/>
+    <text x="868" y="164" fill="#ffffff" text-anchor="middle">Review</text>
+  </g>
+  <rect x="48" y="226" width="864" height="1" fill="#334155"/>
+  <text x="48" y="258" fill="#cbd5e1" font-family="Segoe UI, Arial, sans-serif" font-size="14">Every finding needs visible evidence, impact, a concrete fix, and a verification check.</text>
+</svg>

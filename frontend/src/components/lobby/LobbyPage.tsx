@@ -48,17 +48,28 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
 
   return (
     <div className="lobby-page">
-      <header className="lobby-heading">
-        <div>
-          <h1>Выберите стол</h1>
-          <p>Ставки и игровые результаты обрабатывает локальный сервер. Только демо-фишки.</p>
+      <section className="lobby-hero" aria-labelledby="lobby-title">
+        <div className="lobby-hero-portrait" aria-hidden="true">
+          <img src={dealerPortrait} alt="" />
         </div>
-      </header>
+        <div className="lobby-hero-copy">
+          <h1 id="lobby-title">Вечер<br />в NOIR.</h1>
+          <p className="lobby-hero-description">Выбирай стол, делай ход, следи за игрой. В клубе — только виртуальные фишки.</p>
+          <div className="lobby-hero-games" aria-label="Доступные игры">
+            {orderedGames.map((game) => <span key={game.id}>{game.name}</span>)}
+          </div>
+          <a className="lobby-hero-cta" href="#table-registry">Выбрать стол <Icon name="arrow" /></a>
+        </div>
+        <div className="lobby-hero-host" aria-label="Ава, хозяйка клуба">
+          <span>АВА</span><i />
+        </div>
+        <div className="lobby-hero-seal" aria-hidden="true">N</div>
+      </section>
 
       <div className="lobby-layout">
-        <section className="table-registry" aria-labelledby="table-registry-title">
+        <section className="table-registry" id="table-registry" aria-labelledby="table-registry-title">
           <div className="lobby-section-heading">
-            <h2 id="table-registry-title">Игровые столы</h2>
+            <h2 id="table-registry-title">Столы клуба</h2>
             <span>{games.length} {games.length % 10 === 1 && games.length % 100 !== 11 ? 'игра' : games.length % 10 >= 2 && games.length % 10 <= 4 && (games.length % 100 < 12 || games.length % 100 > 14) ? 'игры' : 'игр'}</span>
           </div>
           {orderedGames.length ? (
@@ -78,7 +89,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
                       <strong>{game.maximum_bet === undefined ? `от ${game.minimum_bet.toLocaleString('ru-RU')}` : `${game.minimum_bet.toLocaleString('ru-RU')}–${game.maximum_bet.toLocaleString('ru-RU')}`}</strong>
                       {game.maximum_bet === undefined && <em>верхний лимит не передан API</em>}
                     </span>
-                    <span className="table-entry-action">За стол<Icon name="arrow" /></span>
+                    <span className="table-entry-action">Войти<Icon name="arrow" /></span>
                   </button>
                 ) : null
               })}
@@ -90,7 +101,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
               <button type="button" onClick={onRetry}>Обновить список</button>
             </div>
           )}
-          <p className="table-registry-note">Лимиты ставок отображаются по данным локального API.</p>
+          <p className="table-registry-note">Ставки и результаты обрабатываются локально. Только демо-фишки.</p>
         </section>
 
         <aside className="lobby-side-column">
@@ -105,11 +116,6 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
               <div><dt>Побед</dt><dd>{player.wins.toLocaleString('ru-RU')} <small>· {player.win_rate}%</small></dd></div>
               <div><dt>Оборот</dt><dd>{player.total_wagered.toLocaleString('ru-RU')}</dd></div>
             </dl>
-          </section>
-
-          <section className="dealer-panel" aria-label="Хозяйка клуба">
-            <img src={dealerPortrait} alt="Авторская иллюстрация взрослой хозяйки клуба NOIR" />
-            <div className="dealer-copy"><strong>Ава</strong><span>Хозяйка клуба</span></div>
           </section>
 
           <section className="lobby-recent" aria-labelledby="recent-rounds-title">

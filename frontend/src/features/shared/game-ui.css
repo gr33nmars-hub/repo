@@ -40,3 +40,21 @@
   .game-bet-note { grid-column: 1 / -1; min-height: 30px; }
   .game-action-primary { grid-column: 1 / -1; width: 100%; }
 }
+
+/* Shared controls carry the same warm-metal, felt-room language as the lobby. */
+.game-page-heading { margin-bottom: 25px; }
+.game-page-heading h1 { font-size: clamp(32px, 3.6vw, 45px); font-weight: 510; letter-spacing: -.04em; }
+.game-page-heading p { margin-top: 9px; color: #bec2b7; font-size: 13px; }
+.game-action-primary, .game-action-secondary { min-height: 45px; border-radius: 8px; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.game-action-primary { border-color: #e3cd98; background: #d7bf87; color: #1a1b16; }
+.game-action-primary:hover:not(:disabled) { border-color: #f0dfb5; background: #ead6a4; }
+.game-action-secondary { border-color: #514a37; border-radius: 8px; background: #1b211b; }
+.game-action-secondary:hover:not(:disabled) { border-color: #a38c56; background: #292a21; color: #f0dfa9; }
+.game-bet-control { margin-top: 23px; padding-top: 18px; border-top-color: #4a4738; }
+.game-bet-input-wrap { border-color: #555543; border-radius: 7px; background: #171b17; }
+.game-bet-adjust button { border-color: #4b4d40; border-radius: 7px; background: #1b201b; }
+.game-bet-note { color: #b7b8ac; }
+.game-bet-note small { color: #96988d; }
+.game-button-progress { border-radius: 50%; animation: noir-button-progress 850ms linear infinite; }
+@keyframes noir-button-progress { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .game-button-progress { animation: none; } }

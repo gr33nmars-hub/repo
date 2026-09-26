@@ -38,7 +38,7 @@ class CasinoSession:
                            "total_wagered": self.player.total_wagered},
                 "games": [{"id": game.game_id, "name": game.name, "minimum_bet": game.minimum_bet,
                            "maximum_bet": game.rules.maximum_bet} for game in self.games.values()],
-                "history": rounds, "blackjack": self.blackjack.state(),
+                "history": rounds, "blackjack": self.blackjack.state(self.player.balance),
             }
 
     def _validate_bet(self, game: CasinoGame, bet: int) -> None:
@@ -85,7 +85,7 @@ class CasinoSession:
             cached = self._cached_request(request_key)
             if cached is not None:
                 return cached
-            if self.blackjack.hand and self.blackjack.hand.status == "playing":
+            if self.blackjack.hand and self.blackjack.hand.status in {"playing", "insurance"}:
                 raise ValueError("Сначала закончи текущую раздачу")
             self._validate_bet(self.blackjack, bet)
             before = self.player.balance
@@ -93,12 +93,12 @@ class CasinoSession:
             previous = self.blackjack.dump_state()
             self.player.balance -= bet
             hand = self.blackjack.start(bet)
-            if hand.status != "playing":
+            if hand.status not in {"playing", "insurance"}:
                 result = self.blackjack.result()
                 self.player.balance += result.payout
                 self._record(result)
             entries = [("blackjack_stake", -bet)]
-            if hand.status != "playing":
+            if hand.status not in {"playing", "insurance"}:
                 entries.append(("blackjack_payout", result.payout))
             state = self.state()
             try:
@@ -117,28 +117,39 @@ class CasinoSession:
             if cached is not None:
                 return cached
             hand = self.blackjack.hand
-            if hand is None or hand.status != "playing":
+            if hand is None or hand.status not in {"playing", "insurance"}:
                 raise ValueError("Сейчас нет активной раздачи")
             before_balance, before_state = self.player.balance, self.blackjack.dump_state()
             before_rounds = self.player.rounds.copy()
-            before_bet = hand.bet
+            active_bet = hand.hands[hand.active_hand_index].bet
             entries = []
+            if action not in self.blackjack.available_actions(self.player.balance):
+                raise ValueError("Это действие сейчас недоступно")
             if action == "hit":
                 self.blackjack.hit()
             elif action == "stand":
                 self.blackjack.stand()
             elif action == "double":
-                if not self.blackjack.blackjack_rules.allow_double or len(hand.player_cards) != 2:
-                    raise ValueError("Удвоить можно только на первых двух картах")
-                if before_bet > self.player.balance:
-                    raise ValueError("Не хватает фишек, чтобы удвоить ставку")
-                self.player.balance -= before_bet
-                entries.append(("blackjack_double_stake", -before_bet))
+                self.player.balance -= active_bet
+                entries.append(("blackjack_double_stake", -active_bet))
                 self.blackjack.double()
+            elif action == "split":
+                self.player.balance -= active_bet
+                entries.append(("blackjack_split_stake", -active_bet))
+                self.blackjack.split()
+            elif action == "surrender":
+                self.blackjack.surrender()
+            elif action == "insurance":
+                insurance_bet = active_bet // 2
+                self.player.balance -= insurance_bet
+                entries.append(("blackjack_insurance_stake", -insurance_bet))
+                self.blackjack.insurance(True)
+            elif action == "decline_insurance":
+                self.blackjack.insurance(False)
             else:
                 raise ValueError("Неизвестное действие за столом")
             result = None
-            if hand.status != "playing":
+            if hand.status not in {"playing", "insurance"}:
                 result = self.blackjack.result()
                 self.player.balance += result.payout
                 self._record(result)

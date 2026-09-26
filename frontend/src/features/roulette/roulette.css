@@ -54,3 +54,26 @@
 @media (prefers-reduced-motion: reduce) {
   .roulette-dial.is-spinning, .roulette-result { animation-duration: .01ms; animation-iteration-count: 1; }
 }
+
+.roulette-table {
+  min-height: 370px;
+  border: 1px solid #495c46;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 27% 50%, rgb(84 132 83 / 19%), transparent 36%),
+    linear-gradient(145deg, #1a211a, #121812 79%);
+}
+.roulette-dial { width: min(294px, 100%); }
+.roulette-track { fill: #19291f; stroke-width: 2; }
+.roulette-tick { stroke: #c5aa68; stroke-width: 1.8; }
+.roulette-hub-ring { fill: #302a1c; stroke: #cfb77c; stroke-width: 2; }
+.roulette-hub { fill: #203c2b; stroke: #789070; stroke-width: 1.5; }
+.roulette-ball { border-color: #fff8e8; background: #fff8e8; box-shadow: 0 1px 6px rgb(255 246 225 / 60%); }
+.roulette-hub-copy strong { color: #f0dfad; font-size: 22px; }
+.roulette-betting h2 { font-size: 21px; }
+.roulette-choice { min-height: 47px; border-radius: 8px; background: #1c241d; }
+.roulette-choice.is-selected { border-color: #c5a55c; background: #2b2a20; }
+.roulette-choice--red .roulette-choice-marker { border-color: #bd7770; background: #a54b48; }
+.roulette-choice--zero .roulette-choice-marker { border-color: #82a07d; background: #4b7658; }
+.roulette-result { border-color: #625b3d; }
+@media (max-width: 760px) { .roulette-table { border-radius: 12px; } }

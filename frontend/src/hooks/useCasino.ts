@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { casinoApi } from '../lib/casino.api'
-import type { CasinoState, GameId, RouletteChoice } from '../types'
+import type { BlackjackAction, CasinoState, GameId, RouletteChoice } from '../types'
 
 export function useCasino() {
   const [state, setState] = useState<CasinoState | null>(null)
@@ -57,7 +57,7 @@ export function useCasino() {
   const startBlackjack = useCallback((bet: number) =>
     act(() => casinoApi.startBlackjack(bet), 'Карты розданы'), [act])
 
-  const blackjackAction = useCallback((action: 'hit' | 'stand' | 'double') =>
+  const blackjackAction = useCallback((action: BlackjackAction) =>
     act(() => casinoApi.blackjackAction(action)), [act])
 
   const refill = useCallback(() => act(async () => {

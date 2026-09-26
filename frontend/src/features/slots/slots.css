@@ -39,3 +39,29 @@
 @media (prefers-reduced-motion: reduce) {
   .slots-reel-motion, .slots-result { animation-duration: .01ms; animation-iteration-count: 1; }
 }
+
+.slots-table {
+  min-height: 390px;
+  border: 1px solid #695b3c;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 50% 37%, rgb(184 144 75 / 12%), transparent 35%),
+    radial-gradient(ellipse at 50% 112%, #243a2b, transparent 70%),
+    linear-gradient(145deg, #1b211a, #131813 73%);
+}
+.slots-table-edge { inset: 7px; border-color: rgb(205 183 126 / 31%); border-radius: 10px; }
+.slots-brand { color: #ead8a7; font-size: 14px; letter-spacing: .19em; }
+.slots-reels { gap: 8px; padding: 9px; border-radius: 9px; background: linear-gradient(155deg, #171912, #090c09); }
+.slots-reel-window { width: min(112px, 22vw); border-color: #857552; border-radius: 5px; background: linear-gradient(155deg, #f3efe2, #d8d0bb); }
+.slots-reel-idle { color: #8c8067; font-size: 29px; }
+.slot-symbol { stroke-width: 2.6; }
+.slot-symbol--cherry { color: #a24943; }
+.slot-symbol--lemon { color: #9c853d; }
+.slot-symbol--bell { color: #536c58; }
+.slot-symbol--diamond { color: #987b44; }
+.slot-symbol--seven { color: #984b3d; stroke-width: 4; }
+.slots-table-message { gap: 6px; }
+.slots-table-message strong { font-size: 14px; }
+.slots-table-message span { color: #c0c2b6; font-size: 11px; }
+.slots-result { border-color: #6c6041; border-radius: 9px; }
+@media (max-width: 760px) { .slots-table { min-height: 350px; border-radius: 12px; } }

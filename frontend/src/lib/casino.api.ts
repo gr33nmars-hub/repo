@@ -1,6 +1,7 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { Command, type Child } from '@tauri-apps/plugin-shell'
 import type {
+  BlackjackAction,
   CasinoState,
   GameId,
   PlayResponse,
@@ -73,7 +74,7 @@ export const casinoApi = {
     requestMutation<PlayResponse>(`play:${game}`, `/api/games/${game}/play`, { bet, choice }),
   startBlackjack: (bet: number) =>
     requestMutation<CasinoState>('blackjack:start', '/api/blackjack/start', { bet }),
-  blackjackAction: (action: 'hit' | 'stand' | 'double') =>
+  blackjackAction: (action: BlackjackAction) =>
     requestMutation<CasinoState>(`blackjack:${action}`, '/api/blackjack/action', { action }),
   refill: () => requestMutation<{ balance: number }>('refill', '/api/refill', {}),
 }

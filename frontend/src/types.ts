@@ -1,6 +1,19 @@
 export type GameId = 'slots' | 'roulette' | 'blackjack'
 export type RouletteChoice = 'red' | 'black' | 'zero'
-export type BlackjackStatus = 'playing' | 'won' | 'lost' | 'push'
+export type BlackjackStatus = 'insurance' | 'playing' | 'won' | 'lost' | 'push' | 'mixed'
+export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'surrender' | 'insurance' | 'decline_insurance'
+
+export interface BlackjackPlayerHand {
+  cards: string[]
+  score: number
+  bet: number
+  status: string
+  message?: string
+  payout?: number
+  doubled?: boolean
+  surrendered?: boolean
+  from_split?: boolean
+}
 
 export interface PlayerState {
   name: string
@@ -39,6 +52,14 @@ export interface BlackjackState {
   status: BlackjackStatus
   message: string
   can_double: boolean
+  hands?: BlackjackPlayerHand[]
+  active_hand_index?: number | null
+  available_actions?: BlackjackAction[]
+  can_split?: boolean
+  can_surrender?: boolean
+  insurance_bet?: number
+  insurance_payout?: number
+  rules?: Record<string, unknown>
 }
 
 export interface CasinoState {

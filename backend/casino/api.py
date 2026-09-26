@@ -16,7 +16,7 @@ class PlayRequest(BaseModel):
 
 
 class BlackjackActionRequest(BaseModel):
-    action: str = Field(pattern="^(hit|stand|double)$")
+    action: str = Field(pattern="^(hit|stand|double|split|surrender|insurance|decline_insurance)$")
     idempotency_key: str = Field(min_length=1, max_length=128)
 
 

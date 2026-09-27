@@ -22,7 +22,7 @@ export function BetControl({ amount, balance, minimum, maximum, busy, evenOnly =
     && amount <= available
     && (!evenOnly || amount % 2 === 0)
 
-  let message = 'Ставка в виртуальных фишках.'
+  let message = 'Ставка готова.'
   if (!Number.isSafeInteger(amount)) message = 'Укажи целое количество фишек.'
   else if (amount < minimum) message = `Минимальная ставка — ${minimum.toLocaleString('ru-RU')}.`
   else if (amount > balance) message = 'На балансе недостаточно фишек.'

@@ -33,5 +33,5 @@ function stop(code = 0) {
 
 process.on('SIGINT', () => stop(0))
 process.on('SIGTERM', () => stop(0))
-start('uv', ['run', '--directory', '..', 'uvicorn', '--app-dir', 'backend', 'casino.api:app', '--host', '127.0.0.1', '--port', '8765'], 'api')
+start('uv', ['run', '--directory', '..', 'python', 'backend/run_api.py'], 'api')
 start('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], 'vite')

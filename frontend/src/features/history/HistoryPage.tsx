@@ -24,7 +24,6 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
   if (loading) {
     return <section className="history-state history-state--loading" aria-live="polite" aria-busy="true">
       <h1>Загружаем историю</h1>
-      <p>Получаем завершённые раунды с локального сервера.</p>
       <div className="history-loading-lines" aria-hidden="true"><span /><span /><span /></div>
     </section>
   }
@@ -42,7 +41,7 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
   return (
     <div className="history-page">
       <header className="game-page-heading">
-        <div><h1>История раундов</h1><p>Последние завершённые игры, полученные от локального сервера.</p></div>
+        <div><h1>История раундов</h1><p>Ставки, выплаты и итоги.</p></div>
         <span className="history-count">{rounds.length}</span>
       </header>
 
@@ -68,7 +67,7 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
       ) : (
         <section className="history-state history-state--empty" aria-live="polite">
           <h2>Завершённых раундов пока нет</h2>
-          <p>После первой завершённой игры сервер добавит её сюда.</p>
+          <p>Здесь появятся сыгранные раунды.</p>
           <button className="game-action-secondary" type="button" onClick={onOpenLobby}>Перейти в лобби <Icon name="arrow" /></button>
         </section>
       )}

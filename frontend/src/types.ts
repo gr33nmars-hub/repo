@@ -30,6 +30,10 @@ export interface GameInfo {
   name: string
   minimum_bet: number
   maximum_bet?: number
+  paytable?: { symbol: string; multiplier: number }[]
+  pair_multiplier?: number
+  theoretical_return_percent?: number
+  reel_strips?: string[][]
 }
 
 export interface RoundResult {
@@ -40,6 +44,14 @@ export interface RoundResult {
   payout: number
   profit: number
   details: string
+  symbols?: string[]
+  reel_stops?: number[]
+  fairness?: {
+    server_seed: string
+    server_seed_hash: string
+    client_seed: string
+    nonce: number
+  }
   played_at: string
 }
 
@@ -67,6 +79,7 @@ export interface CasinoState {
   games: GameInfo[]
   history: RoundResult[]
   blackjack: BlackjackState | null
+  slots_server_seed_hash?: string
 }
 
 export interface PlayResponse {

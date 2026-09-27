@@ -1,10 +1,8 @@
 [package]
 name = "noir-casino"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "Локальное казино NOIR на виртуальных фишках: блэкджек, рулетка и слоты."
+repository = "https://github.com/FeoreV/777asino"
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -23,4 +21,5 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.6", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"

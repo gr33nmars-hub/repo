@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
-import { casinoApi } from '../lib/casino.api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  casinoApi,
+  isPendingMutationBlock,
+  reconciledConflictState,
+  retryPendingMutation,
+} from '../lib/casino.api'
 import type { BlackjackAction, CasinoState, GameId, RouletteChoice } from '../types'
 
 export function useCasino() {
@@ -7,6 +12,7 @@ export function useCasino() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastRound, setLastRound] = useState<string | null>(null)
+  const retryOperation = useRef<(() => Promise<void>) | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -22,15 +28,26 @@ export function useCasino() {
     void refresh()
   }, [refresh])
 
-  const act = useCallback(async (operation: () => Promise<CasinoState>, notice?: string) => {
+  const act = useCallback(async function runStateOperation(operation: () => Promise<CasinoState>, notice?: string) {
     setBusy(true)
     setError(null)
     try {
       const next = await operation()
       setState(next)
       if (notice) setLastRound(notice)
+      retryOperation.current = null
       return true
     } catch (caught) {
+      const reconciled = reconciledConflictState(caught)
+      if (reconciled) {
+        setState(reconciled)
+        retryOperation.current = null
+        setError('Состояние обновлено. Проверь стол и повтори действие при необходимости.')
+        return false
+      }
+      if (!isPendingMutationBlock(caught)) {
+        retryOperation.current = async () => { await runStateOperation(operation, notice) }
+      } else retryOperation.current = null
       setError(caught instanceof Error ? caught.message : 'Не удалось выполнить действие')
       return false
     } finally {
@@ -38,15 +55,33 @@ export function useCasino() {
     }
   }, [])
 
-  const play = useCallback(async (game: Exclude<GameId, 'blackjack'>, bet: number, choice = '') => {
+  const play = useCallback(async function runGame(
+    game: Exclude<GameId, 'blackjack'>,
+    bet: number,
+    choice = '',
+    expectedServerSeedHash?: string,
+  ) {
     setBusy(true)
     setError(null)
     try {
-      const response = await casinoApi.play(game, bet, choice)
+      const response = await casinoApi.play(game, bet, choice, expectedServerSeedHash)
       setState(response.state)
       setLastRound(response.result.message)
+      retryOperation.current = null
       return response.result
     } catch (caught) {
+      const reconciled = reconciledConflictState(caught)
+      if (reconciled) {
+        setState(reconciled)
+        retryOperation.current = null
+        setError('Состояние обновлено. Проверь стол и повтори действие при необходимости.')
+        return null
+      }
+      if (!isPendingMutationBlock(caught)) {
+        retryOperation.current = async () => {
+          await runGame(game, bet, choice, expectedServerSeedHash)
+        }
+      } else retryOperation.current = null
       setError(caught instanceof Error ? caught.message : 'Раунд не запустился')
       return null
     } finally {
@@ -60,10 +95,47 @@ export function useCasino() {
   const blackjackAction = useCallback((action: BlackjackAction) =>
     act(() => casinoApi.blackjackAction(action)), [act])
 
-  const refill = useCallback(() => act(async () => {
-    await casinoApi.refill()
-    return casinoApi.state()
-  }, 'Демо-баланс пополнен'), [act])
+  const refill = useCallback(async function runRefill() {
+    setBusy(true)
+    setError(null)
+    try {
+      const { balance } = await casinoApi.refill()
+      setState((current) => current ? { ...current, player: { ...current.player, balance } } : current)
+      setLastRound('Баланс пополнен')
+      retryOperation.current = null
+      return true
+    } catch (caught) {
+      const reconciled = reconciledConflictState(caught)
+      if (reconciled) {
+        setState(reconciled)
+        retryOperation.current = null
+        setError('Состояние обновлено. Проверь баланс и повтори действие при необходимости.')
+        return false
+      }
+      if (!isPendingMutationBlock(caught)) {
+        retryOperation.current = async () => { await runRefill() }
+      } else retryOperation.current = null
+      setError(caught instanceof Error ? caught.message : 'Не удалось пополнить баланс')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  const retry = useCallback(async () => {
+    const operation = retryOperation.current
+    if (operation) await operation()
+    else {
+      try {
+        await retryPendingMutation()
+        setError(null)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Не удалось повторить запрос')
+      } finally {
+        await refresh()
+      }
+    }
+  }, [refresh])
 
   return {
     state,
@@ -71,6 +143,7 @@ export function useCasino() {
     error,
     lastRound,
     refresh,
+    retry,
     play,
     startBlackjack,
     blackjackAction,

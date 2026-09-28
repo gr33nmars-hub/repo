@@ -8,5 +8,8 @@ export default defineConfig({
     fs: {
       allow: ['..'],
     },
+    watch: {
+      ignored: ['**/build/**', '**/src-tauri/target/**'],
+    },
   },
 })

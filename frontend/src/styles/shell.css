@@ -200,6 +200,78 @@
 .lobby-empty--connection h1 { font-size: 28px; }
 .lobby-empty--connection p { max-width: 440px; }
 
+/* A quieter frame gives the table photography and real account state the lead. */
+.noir-sidebar { background: #121613; }
+.noir-brand-mark { border-color: #655a3e; }
+.noir-nav-item { border-radius: 0; }
+.noir-nav-item.is-current { border-color: #514a37; background: #1e211c; }
+.noir-nav-active-mark { animation: nav-marker-in 180ms var(--ease-ui) both; }
+.noir-topbar { background: #111512; }
+.noir-wallet { gap: 10px; }
+.noir-wallet > svg { color: #c7ad70; }
+.noir-wallet-copy strong { animation: balance-tick 240ms var(--ease-ui) both; }
+.noir-content { padding-top: 25px; }
+.noir-error-banner, .noir-notice { border-radius: 0; }
+.noir-room-view { animation-duration: 150ms; }
+.noir-api-indicator { transition: color var(--motion-ui) var(--ease-ui); }
+.noir-refill { transition: transform var(--motion-fast) var(--ease-ui), border-color var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui); }
+.noir-error-banner button { transition: transform var(--motion-fast) var(--ease-ui), border-color var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui); }
+
+.lobby-heading { margin-bottom: 15px; }
+.lobby-heading h1 { font-size: clamp(38px, 3.2vw, 48px); font-weight: 500; letter-spacing: -.045em; }
+.lobby-heading p { margin-top: 6px; color: #a7aaa0; font-size: 13px; }
+.table-grid { gap: 10px; }
+.table-entry {
+  min-height: 0;
+  border-color: #3a4038;
+  border-radius: 2px;
+  background: #131713;
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+.table-entry:hover { border-color: #81734f; background: #151a16; }
+.table-entry-visual { background: #111512; }
+.table-entry-image { filter: saturate(.84) contrast(1.04); transition: filter 500ms ease, transform 700ms cubic-bezier(.2,.7,.2,1); }
+.table-entry:hover .table-entry-image { filter: saturate(.98) contrast(1.06); transform: scale(1.035); }
+.table-entry-symbol { border-radius: 2px; background: #171b17; }
+.table-entry-action { border-radius: 2px; }
+.player-ledger, .lobby-recent { border-radius: 2px; border-color: #3b4038; }
+.recent-round-list li { transition: background-color 140ms ease; }
+.recent-round-list li:hover { background: #1c211c; }
+
+@media (hover: hover) and (pointer: fine) {
+  .noir-brand-mark { transition: border-color var(--motion-ui) var(--ease-ui), background-color var(--motion-ui) var(--ease-ui), color var(--motion-ui) var(--ease-ui); }
+  .noir-brand:hover .noir-brand-mark { border-color: var(--color-brass); background: #1a1e19; color: #f1dba4; }
+  .noir-brand:hover .noir-brand-copy strong { color: #f1dba4; }
+  .noir-nav-item .noir-nav-icon { transition: color var(--motion-ui) var(--ease-ui), transform var(--motion-ui) var(--ease-ui); }
+  .noir-nav-item:hover .noir-nav-icon { transform: translateX(2px); }
+  .noir-refill:hover:not(:disabled) { transform: translateY(-1px); border-color: #b29a60; }
+  .noir-error-banner button:hover { border-color: #ad7970; background: #3a2623; }
+  .lobby-section-heading button:hover, .lobby-empty--history button:hover { color: #f1dba4; }
+  .lobby-section-heading button:hover svg, .lobby-empty--history button:hover svg { transform: translateX(3px); }
+  .table-entry:hover .table-entry-action { border-color: #f0dfb5; background: #ead6a4; }
+}
+
+.noir-brand:active .noir-brand-mark { background: #22271f; }
+.noir-nav-item:active:not(:disabled) { transform: translateX(1px); background: #20251f; }
+.noir-refill:active:not(:disabled), .noir-error-banner button:active, .lobby-section-heading button:active, .lobby-empty button:active { transform: translateY(1px); }
+.table-entry:active { transform: translateY(0) scale(.996); }
+.lobby-section-heading button svg, .lobby-empty--history button svg { transition: transform var(--motion-fast) var(--ease-ui); }
+.lobby-section-heading button, .lobby-empty--history button { transition: color var(--motion-fast) var(--ease-ui); }
+.lobby-empty button { transition: border-color var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui), transform var(--motion-fast) var(--ease-ui); }
+.lobby-empty button:hover:not(:disabled) { border-color: #aa935c; background: #2d2c22; }
+.lobby-empty button:active:not(:disabled) { transform: translateY(1px); }
+@keyframes nav-marker-in { from { clip-path: inset(32% 0); opacity: .35; } to { clip-path: inset(0); opacity: 1; } }
+@keyframes balance-tick { from { transform: translateY(3px); opacity: .45; color: var(--color-brass-strong); } to { transform: translateY(0); opacity: 1; color: var(--color-ink); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .table-entry-image { transition: none; }
+  .table-entry:hover .table-entry-image { transform: none; }
+  .noir-nav-active-mark, .noir-wallet-copy strong { animation: none; }
+  .noir-brand-mark, .noir-nav-item, .noir-nav-item .noir-nav-icon, .lobby-section-heading button, .lobby-section-heading button svg, .lobby-empty--history button, .lobby-empty--history button svg, .lobby-empty button, .noir-refill, .noir-error-banner button { transition: none; }
+  .noir-nav-item:hover .noir-nav-icon, .noir-refill:hover:not(:disabled), .table-entry:hover .table-entry-action svg { transform: none; }
+  .noir-nav-item:active:not(:disabled), .table-entry:active { transform: none; }
+}
+
 @keyframes room-arrive { from { opacity: .35; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (min-width: 1101px) and (min-height: 681px) {
@@ -325,4 +397,13 @@
   .noir-room-view { animation: none; }
   .table-entry, .table-entry-action, .table-entry-action svg { transition: none; }
   .table-entry:hover { transform: none; }
+}
+
+@media (min-width: 1101px) and (min-height: 681px) {
+  .lobby-heading h1 { font-size: clamp(38px, 3.2vw, 48px); }
+  .table-entry, .player-ledger, .lobby-recent { border-radius: 2px; }
+  .table-entry-symbol, .table-entry-action { border-radius: 2px; }
+}
+@media (max-width: 760px) {
+  .table-entry, .player-ledger, .lobby-recent, .table-entry-symbol, .table-entry-action { border-radius: 2px; }
 }

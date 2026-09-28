@@ -154,6 +154,11 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
 
   return <div className="blackjack-page">
     <header className="blackjack-heading">
+      <div className="blackjack-heading-copy">
+        <span className="blackjack-kicker">NOIR / СТОЛ 01</span>
+        <h1>Блэкджек</h1>
+        <p>Классическая игра против дилера</p>
+      </div>
       <button ref={rulesTrigger} type="button" className="blackjack-rules-trigger" aria-label="Правила стола" aria-expanded={rulesOpen} aria-controls="blackjack-rules-panel" onClick={() => setRulesOpen(true)}>ⓘ <span>Правила стола</span></button>
     </header>
 

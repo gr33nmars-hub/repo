@@ -160,13 +160,13 @@ blackjack.py: BlackjackRound aggregate, transitions, rule version, settlement ef
 
 ### Ещё требуется по критическому пути
 
-1. Прогнать recovery `verify`/`restore` на копиях пользовательских сохранений (если они будут предоставлены) и проверить все входные версии миграции на архивных fixtures. Нельзя восстановить неизвестную историю сброшенных карт и ledger provenance из старого активного snapshot; остаточный риск указан выше.
-2. Повторить отдельный packaged smoke после финальной правки build pipeline и проверить его в реальном Tauri WebView. Текущий smoke собрал и запустил sidecar с loopback/token/nonce, но не запускал installer или полноценное окно.
-3. Перед выпуском ранней альфы сделать dry-run recovery на пользовательской копии базы; тестовые SQLite fixtures покрывают legacy JSON, старые ledger schema, blackjack save versions 2/3/4/5 и некорректные данные.
+1. Recovery `verify`/`restore` на доступной копии и архивных fixtures пройдены. Read-only сравнение активной пользовательской базы с автоматическим pre-migration backup подтвердило `quick_check=ok` и равенство общих колонок; исходную базу не меняли. Историю сброшенных карт и provenance неоднозначных старых операций по-прежнему нельзя восстановить из legacy snapshot; такие раунды остаются `legacy-unverified`.
+2. MSI/NSIS собраны из чистого latest-source checkout `d11c0af`; NSIS установлен в отдельный temp каталог. Packaged Tauri WebView прошёл blackjack gameplay, HTTP 502 после commit, reload/retry без повторной проводки, backup/restore активной руки и settlement после relaunch. Через event bridge отправлен `tauri://close-requested`: установленный `onCloseRequested` handler закрыл окно и остановил sidecar, health endpoint перестал отвечать. Дополнительно собранный из текущего дерева packaged executable получил native Windows `WM_CLOSE`: окно и sidecar завершились, изолированная база прошла `recovery verify`. Физический titlebar click вручную не выполнялся. Отдельный `core:window:destroy` обходит handler и не считается проверкой штатного закрытия.
+3. Fixtures покрывают schema v0–v4, legacy/corrupt JSON и blackjack save versions 2–5; dry-run backup/restore на отдельной базе с активной рукой завершился успешно, installed app восстановило руку и продолжило её через `stand`. Пользовательская база проверялась только read-only/на копии; реальный файл не заменяли.
 
 ### Последние проверки
 
-- Python 3.12: `uv run --directory backend python -m unittest discover -s tests -q` — 57 тестов, OK.
-- Python 3.10: `uv run --no-project --python 3.10 --with fastapi --with uvicorn --directory backend python -m unittest discover -s tests -q` — 57 тестов, OK.
-- `mypy --python-version 3.10 casino`, Ruff check/format, `npm run test:unit`, `npm run build` и `npm run lint` — OK.
-- PyInstaller console sidecar HTTP smoke — OK. `frontend` build прошёл после HMAC verifier update.
+- Python 3.12: `uv run --directory backend --group test python -m unittest discover -s tests -q` — 92 теста, OK; включает два Hypothesis blackjack state machines.
+- Python 3.10: `uv run --no-project --python 3.10 --with fastapi --with uvicorn --with hypothesis --directory backend python -m unittest discover -s tests -q` — 92 теста, OK.
+- `mypy --python-version 3.10 casino` (36 исходных файлов), Ruff check/format, `npm run test:unit`, `npm run build` и `npm run lint` — OK.
+- MSI/NSIS bundle из clean checkout `d11c0af`, установленный NSIS WebView gameplay/retry/restore smoke, recovery verify и остановка sidecar через зарегистрированный close-request handler — OK. Из текущего дерева собранный Tauri executable получил native `WM_CLOSE`; окно и sidecar завершились, save прошёл `recovery verify`. Физический titlebar click вручную не выполнялся.

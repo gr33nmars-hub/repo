@@ -38,6 +38,9 @@
   --color-emerald: #93b99c;
   --color-danger: #d78d83;
   --motion-room: 190ms;
+  --motion-fast: 140ms;
+  --motion-ui: 190ms;
+  --ease-ui: cubic-bezier(.2, .7, .2, 1);
 }
 
 * { box-sizing: border-box; }
@@ -45,6 +48,7 @@ html { min-width: 320px; min-height: 100%; background: var(--color-canvas); scro
 body { min-width: 320px; min-height: 100dvh; margin: 0; background: var(--color-canvas); }
 button, input { font: inherit; }
 button { color: inherit; }
+button, summary { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--color-brass-strong); outline-offset: 3px; }
 ::selection { color: #111510; background: #cfb77c; }
 #root { min-height: 100dvh; }

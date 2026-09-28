@@ -62,9 +62,20 @@
 .roulette-result-money strong { color: #de9c91; font: 18px var(--mono); }
 .roulette-result.is-positive .roulette-result-money strong { color: #9bd5aa; }
 .roulette-page .game-bet-control { margin-top: 0; padding-top: 19px; }
+.roulette-table { border-radius: 3px; border-color: #454a3b; box-shadow: inset 0 0 0 4px #181a13; }
+.roulette-choice { border-radius: 2px; }
+.roulette-result-number { border-radius: 50%; }
+@media (hover: hover) and (pointer: fine) {
+  .roulette-choice:hover:not(:disabled) .roulette-choice-chip { transform: scale(1.07) rotate(-7deg); }
+}
+.roulette-choice { transition: background-color var(--motion-fast) var(--ease-ui), border-color var(--motion-fast) var(--ease-ui), transform var(--motion-fast) var(--ease-ui), box-shadow var(--motion-fast) var(--ease-ui); }
+.roulette-choice-chip { transition: transform var(--motion-ui) var(--ease-ui), box-shadow var(--motion-ui) var(--ease-ui); }
+.roulette-choice.is-selected .roulette-choice-chip { box-shadow: 0 0 0 2px #0d1610, 0 0 0 4px rgb(216 189 130 / 24%), inset 0 0 0 2px rgb(255 255 255 / 24%); }
+.roulette-choice:active:not(:disabled) { transform: translateY(1px); }
+.roulette-result { animation: roulette-reveal 260ms cubic-bezier(.2,.7,.2,1) both; }
 @keyframes roulette-pulse { to { opacity: .45; } }
 @keyframes roulette-reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 1080px) { .roulette-table { grid-template-columns: minmax(300px, 1fr) minmax(270px, .9fr); } .roulette-betting { padding-inline: 26px; } }
 @media (max-width: 830px) { .roulette-table { grid-template-columns: 1fr; } .roulette-wheel-stage { min-height: 360px; } .roulette-wheel { width: min(320px, 76vw); } .roulette-betting { border-left: 0; border-top: 1px solid #544932; } .roulette-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } .roulette-choice { min-height: 100px; flex-direction: column; align-items: start; gap: 7px; } .roulette-choice-odds { margin-left: 0; } .roulette-selection { margin-top: 16px; } }
 @media (max-width: 580px) { .roulette-table-id, .roulette-stage-footer { display: none; } .roulette-wheel-stage { min-height: 310px; padding: 25px; } .roulette-wheel { width: min(275px, 80vw); } .roulette-betting { padding: 24px 18px; } .roulette-choice-list { gap: 5px; } .roulette-choice { min-height: 104px; padding: 9px; } .roulette-choice-chip { width: 25px; height: 25px; } .roulette-choice-copy strong { font-size: 12px; } .roulette-choice-copy small { font-size: 9px; } .roulette-choice-odds { font-size: 12px; } .roulette-result { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; padding-inline: 0; } .roulette-result-number { width: 44px; height: 44px; font-size: 18px; } .roulette-result-money { grid-column: 2; display: flex; justify-content: space-between; justify-items: start; white-space: normal; } }
-@media (prefers-reduced-motion: reduce) { .roulette-ready-light.is-active, .roulette-result { animation: none; } .roulette-choice { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .roulette-ready-light.is-active, .roulette-result { animation: none; } .roulette-choice, .roulette-choice-chip { transition: none; } .roulette-choice:active:not(:disabled) { transform: none; } .roulette-choice:hover:not(:disabled) .roulette-choice-chip { transform: none; } }

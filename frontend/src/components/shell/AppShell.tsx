@@ -27,6 +27,7 @@ interface AppShellProps {
   isBusy: boolean
   canRefill: boolean
   error: string | null
+  retryAvailable: boolean
   notice: string | null
   onNavigate: (room: RoomRoute) => void
   onRetry: () => void
@@ -34,7 +35,7 @@ interface AppShellProps {
   children: ReactNode
 }
 
-export function AppShell({ room, player, isConnected, isBusy, canRefill, error, notice, onNavigate, onRetry, onRefill, children }: AppShellProps) {
+export function AppShell({ room, player, isConnected, isBusy, canRefill, error, retryAvailable, notice, onNavigate, onRetry, onRefill, children }: AppShellProps) {
   return (
     <div className="noir-shell">
       <a className="skip-link" href="#main-content">К содержимому</a>
@@ -92,7 +93,7 @@ export function AppShell({ room, player, isConnected, isBusy, canRefill, error, 
             {player ? (
               <div className="noir-wallet" aria-label={`Баланс: ${player.balance.toLocaleString('ru-RU')} фишек`}>
                 <Icon name="coin" />
-                <span className="noir-wallet-copy"><small>БАЛАНС</small><strong>{player.balance.toLocaleString('ru-RU')}</strong></span>
+                <span className="noir-wallet-copy"><small>БАЛАНС</small><strong key={player.balance}>{player.balance.toLocaleString('ru-RU')}</strong></span>
                 <span className="noir-wallet-unit">ФИШЕК</span>
               </div>
             ) : (
@@ -107,7 +108,9 @@ export function AppShell({ room, player, isConnected, isBusy, canRefill, error, 
             <div className="noir-error-banner" role="alert">
               <span className="noir-error-mark" aria-hidden="true">!</span>
               <div><strong>Действие не выполнено</strong><p>{error}</p></div>
-              <button type="button" onClick={onRetry}><Icon name="retry" />Повторить действие</button>
+              <button type="button" onClick={onRetry}>
+                <Icon name="retry" />{retryAvailable ? 'Повторить действие' : 'Обновить состояние'}
+              </button>
             </div>
           )}
           {notice && !error && <div className="noir-notice" role="status">{notice}</div>}

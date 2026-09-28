@@ -51,6 +51,11 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
             <li className="history-round" key={`${round.played_at}-${round.game_id}-${index}`}>
               <div className="history-round-main">
                 <strong>{round.game_name}</strong>
+                {round.verification_status && <small className="history-round-verification">
+                  {round.verification_status === 'verified' ? 'Результат проверен'
+                    : round.verification_status === 'legacy-unverified' ? 'Старая запись · без проверки'
+                      : 'Проверка результата не пройдена'}
+                </small>}
                 <span>{round.message}</span>
                 <time dateTime={round.played_at}>{formatDate(round.played_at)}</time>
               </div>

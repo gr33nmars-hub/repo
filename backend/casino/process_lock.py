@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import threading
 from pathlib import Path
 from types import TracebackType
-
+from typing import BinaryIO
 
 _held_paths: set[Path] = set()
 _held_paths_lock = threading.Lock()
@@ -16,10 +17,8 @@ class BackendProcessLock:
     """Hold an OS file lock for one save path until the owning process exits."""
 
     def __init__(self, database_path: Path) -> None:
-        self.path = database_path.resolve().with_suffix(
-            database_path.suffix + ".backend.lock"
-        )
-        self._file = None
+        self.path = database_path.resolve().with_suffix(database_path.suffix + ".backend.lock")
+        self._file: BinaryIO | None = None
 
     def acquire(self) -> None:
         with _held_paths_lock:
@@ -28,46 +27,44 @@ class BackendProcessLock:
             _held_paths.add(self.path)
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self._file = self.path.open("a+b")
+            lock_file = self.path.open("a+b")
+            self._file = lock_file
             if os.name == "nt":
                 import msvcrt
 
-                self._file.seek(0)
-                if self._file.read(1) == b"":
-                    self._file.seek(0)
-                    self._file.write(b"\0")
-                    self._file.flush()
-                self._file.seek(0)
-                msvcrt.locking(self._file.fileno(), msvcrt.LK_NBLCK, 1)
+                lock_file.seek(0)
+                if lock_file.read(1) == b"":
+                    lock_file.seek(0)
+                    lock_file.write(b"\0")
+                    lock_file.flush()
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
             else:
-                import fcntl
-
-                fcntl.flock(self._file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (OSError, RuntimeError) as error:
+                fcntl = importlib.import_module("fcntl")
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
             if self._file is not None:
                 self._file.close()
                 self._file = None
             with _held_paths_lock:
                 _held_paths.discard(self.path)
-            if isinstance(error, OSError):
-                raise RuntimeError("Another backend or restore operation owns this save") from error
-            raise
+            raise RuntimeError("Another backend or restore operation owns this save") from error
 
     def release(self) -> None:
-        if self._file is None:
+        lock_file = self._file
+        if lock_file is None:
             return
         try:
             if os.name == "nt":
                 import msvcrt
 
-                self._file.seek(0)
-                msvcrt.locking(self._file.fileno(), msvcrt.LK_UNLCK, 1)
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
             else:
-                import fcntl
-
-                fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
+                fcntl = importlib.import_module("fcntl")
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
         finally:
-            self._file.close()
+            lock_file.close()
             self._file = None
             with _held_paths_lock:
                 _held_paths.discard(self.path)

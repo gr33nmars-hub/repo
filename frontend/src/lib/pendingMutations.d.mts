@@ -8,5 +8,6 @@ export function createPendingMutationStore(
   storageProvider?: () => Storage,
 ): {
   read: () => Record<string, PendingMutation>
-  write: (value: Record<string, PendingMutation>) => void
+  write: (value: Record<string, PendingMutation>) => boolean
+  isSafe: () => boolean
 }

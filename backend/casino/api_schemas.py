@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from casino.blackjack import BlackjackAction
+from casino.domain.blackjack import BlackjackAction
 
 
 class StrictRequest(BaseModel):
@@ -61,6 +61,11 @@ class RoundResultResponse(BaseModel):
     symbols: list[str] | None = None
     reel_stops: list[int] | None = None
     fairness: dict[str, Any] | None = None
+    rule_version: str | None = None
+    rules_fingerprint: str | None = None
+    rules_snapshot: dict[str, Any] | None = None
+    outcome: dict[str, Any] | None = None
+    verification_status: str | None = None
 
 
 class BlackjackPlayerHandResponse(BaseModel):

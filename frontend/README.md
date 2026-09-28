@@ -1,32 +1,24 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React and TypeScript frontend for NOIR Casino Club. The same UI runs in a browser for development and in Tauri for desktop release.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Install dependencies with `npm install`. Run `npm run tauri:dev` to start the Tauri window; its `beforeDevCommand` starts the local API and Vite. To work in a browser, start the API from the repository root with `uv run --directory backend python run_api.py`, then run `npm run dev` here.
 
-## React Compiler
+## Production build
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+`npm run build` type-checks and builds the Vite assets. `npm run build:desktop` also packages `backend/run_api.py` as the Windows sidecar under `src-tauri/binaries`. `npm run tauri build` creates the configured Windows installer and invokes `build:desktop` through Tauri's `beforeBuildCommand`.
 
-## Expanding the Oxlint configuration
+On Windows, `scripts/tauri.mjs` selects the rustup `stable-x86_64-pc-windows-msvc` compiler, loads the Visual Studio C++ and Windows SDK environment through `VsDevCmd`, and uses `build/tauri-msvc` as an isolated Cargo target directory. Both `npm run tauri build` and `npm run tauri:dev` use this wrapper, even when another Rust installation appears earlier on `PATH`. The machine needs rustup, Visual Studio C++ x64 tools, and a Windows SDK.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Source boundaries
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+- `src/App.tsx` composes navigation and feature pages.
+- `src/features/` contains blackjack, roulette, slots, and history UI.
+- `src/hooks/useCasino.ts` owns UI state and operation feedback.
+- `src/lib/casino.api.ts` declares endpoint operations; `httpClient.ts` handles HTTP; `casino.commands.ts` persists pending mutations and retries.
+- `src/platform/desktopBackend.ts` starts the Tauri sidecar, checks its token/instance nonce, and stops it when the window closes.
+- `src-tauri/` configures the native window, permissions, sidecar, and installer bundle.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Run `npm run lint` and `npm run test:unit` for frontend checks. `npm run tauri build` has produced both configured Windows bundles; sidecar shutdown, retry after restart, and restore still need an installed-app smoke check.

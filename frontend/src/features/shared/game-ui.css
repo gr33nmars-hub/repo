@@ -43,7 +43,7 @@
 
 /* Shared controls carry the same warm-metal, felt-room language as the lobby. */
 .game-page-heading { margin-bottom: 25px; }
-.game-page-heading h1 { font-size: clamp(32px, 3.6vw, 45px); font-weight: 510; letter-spacing: -.04em; }
+.game-page-heading h1 { font-size: clamp(32px, 3.4vw, 43px); font-weight: 510; letter-spacing: -.04em; }
 .game-page-heading p { margin-top: 9px; color: #bec2b7; font-size: 13px; }
 .game-action-primary, .game-action-secondary { min-height: 45px; border-radius: 8px; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
 .game-action-primary { border-color: #e3cd98; background: #d7bf87; color: #1a1b16; }
@@ -58,3 +58,18 @@
 .game-button-progress { border-radius: 50%; animation: noir-button-progress 850ms linear infinite; }
 @keyframes noir-button-progress { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .game-button-progress { animation: none; } }
+
+@media (hover: hover) and (pointer: fine) {
+  .game-action-primary:hover:not(:disabled), .game-action-secondary:hover:not(:disabled) { transform: translateY(-1px); }
+  .game-bet-adjust button:hover:not(:disabled) { transform: translateY(-1px); background: #252b24; }
+  .game-bet-input-wrap:hover { border-color: #77745c; }
+}
+.game-action-primary:active:not(:disabled), .game-action-secondary:active:not(:disabled), .game-bet-adjust button:active:not(:disabled) { transform: translateY(1px); }
+.game-bet-input-wrap { transition: border-color var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui), box-shadow var(--motion-fast) var(--ease-ui); }
+.game-bet-input-wrap:focus-within { border-color: var(--color-brass-strong); box-shadow: 0 0 0 1px rgb(230 209 156 / 16%); }
+.game-bet-input-wrap:has(input[aria-invalid="true"]) { border-color: #a45e55; background: #1d1715; }
+.game-action-primary:disabled, .game-action-secondary:disabled, .game-bet-adjust button:disabled { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .game-action-primary:hover:not(:disabled), .game-action-secondary:hover:not(:disabled), .game-bet-adjust button:hover:not(:disabled),
+  .game-action-primary:active:not(:disabled), .game-action-secondary:active:not(:disabled), .game-bet-adjust button:active:not(:disabled) { transform: none; }
+}

@@ -1,6 +1,6 @@
-class IdempotencyConflict(ValueError):
-    """A request key exists but cannot safely identify this operation."""
+"""Compatibility exports for exceptions moved into their owning layers."""
 
+from casino.application.errors import IdempotencyConflict, StaleGameState
+from casino.domain.errors import InvalidCasinoCommand
 
-class StaleGameState(ValueError):
-    """The client made a game action against a state that has since changed."""
+__all__ = ["IdempotencyConflict", "InvalidCasinoCommand", "StaleGameState"]

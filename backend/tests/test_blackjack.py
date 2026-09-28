@@ -6,16 +6,18 @@ import sqlite3
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from copy import deepcopy
 from pathlib import Path
 
-from casino.blackjack import Blackjack, BlackjackRules
-from casino.core import GameRules
-from casino.errors import IdempotencyConflict
-from casino.games import RouletteRules, SlotRules
-from casino.models import Card, GameResult, Player
-from casino.session import CasinoSession
-from casino.storage import PlayerRepository
+from casino.application.errors import IdempotencyConflict
+from casino.application.service import CasinoService
+from casino.domain.blackjack import Blackjack, BlackjackRules
+from casino.domain.core import GameRules
+from casino.domain.games import RouletteRules, SlotRules
+from casino.domain.ledger import LedgerEntryType, LedgerMovement
+from casino.domain.models import Card, GameResult, Player
+from casino.persistence.sqlite import PlayerRepository
 
 
 def rig(game: Blackjack, draws: list[tuple[str, str]]) -> None:
@@ -107,7 +109,10 @@ class BlackjackRulesTests(unittest.TestCase):
         )
         game.start(20)
         split = game.act("split", balance=100)
-        self.assertEqual(split.ledger_entries, (("blackjack_split_stake", -20),))
+        self.assertEqual(
+            split.ledger_entries,
+            (LedgerMovement(LedgerEntryType.BLACKJACK_SPLIT_STAKE, -20),),
+        )
         self.assertIsNone(split.result)
         self.assertEqual(len(game.hand.hands), 2)
 
@@ -115,7 +120,10 @@ class BlackjackRulesTests(unittest.TestCase):
         rig(surrender_game, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
         surrender_game.start(20)
         surrender = surrender_game.act("surrender", balance=100)
-        self.assertEqual(surrender.ledger_entries, (("blackjack_payout", 10),))
+        self.assertEqual(
+            surrender.ledger_entries,
+            (LedgerMovement(LedgerEntryType.BLACKJACK_PAYOUT, 10),),
+        )
         self.assertEqual(surrender.result.payout, 10)
 
     def test_ten_upcard_peeks_before_actions_and_split_aces_get_one_card(self) -> None:
@@ -369,12 +377,12 @@ class BlackjackRulesTests(unittest.TestCase):
 
     def test_restore_active_round_and_idempotent_session_accounting(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            session = CasinoSession(PlayerRepository(Path(directory) / "test.sqlite3"))
+            session = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
             rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             started = session.start_blackjack(20, "start")
             self.assertEqual(started["player"]["balance"], 2480)
             self.assertEqual(session.start_blackjack(20, "start"), started)
-            restored = CasinoSession(PlayerRepository(Path(directory) / "test.sqlite3"))
+            restored = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
             self.assertEqual(restored.state()["blackjack"]["status"], "playing")
             settled = restored.blackjack_action("surrender", "action")
             self.assertEqual(settled["player"]["balance"], 2490)
@@ -383,7 +391,7 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_active_blackjack_snapshot_must_match_durable_round_stakes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "casino.sqlite3"
-            session = CasinoSession(PlayerRepository(path))
+            session = CasinoService(PlayerRepository(path))
             rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             session.start_blackjack(20, "start")
 
@@ -402,17 +410,17 @@ class BlackjackRulesTests(unittest.TestCase):
                 db.close()
 
             with self.assertRaisesRegex(RuntimeError, "wagers do not match"):
-                CasinoSession(PlayerRepository(path))
+                CasinoService(PlayerRepository(path))
 
     def test_split_stakes_restore_against_round_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "casino.sqlite3"
-            session = CasinoSession(PlayerRepository(path))
+            session = CasinoService(PlayerRepository(path))
             rig(session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣"), ("2", "♦")])
             session.start_blackjack(20, "start")
             session.blackjack_action("split", "split")
 
-            restored = CasinoSession(PlayerRepository(path))
+            restored = CasinoService(PlayerRepository(path))
             self.assertEqual(restored.blackjack.hand.bet, 40)
             db = sqlite3.connect(path)
             try:
@@ -434,7 +442,7 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_failed_blackjack_save_restores_hand_and_shoe(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repository = PlayerRepository(Path(directory) / "casino.sqlite3")
-            session = CasinoSession(repository)
+            session = CasinoService(repository)
             rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣"), ("2", "♦")])
             session.start_blackjack(20, "start")
             before_state = session.blackjack.dump_state()
@@ -454,33 +462,38 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_deterministic_action_traces_preserve_wallet_and_restore_invariants(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "casino.sqlite3"
-            chooser = random.Random(91827)
 
-            def reload_session() -> CasinoSession:
-                restored = CasinoSession(PlayerRepository(path))
+            def reload_session() -> CasinoService:
+                restored = CasinoService(PlayerRepository(path))
                 restored.blackjack._rng = random.Random(5521)
                 return restored
 
             session = reload_session()
             action_count = 0
             seen_actions = set()
-            for round_number in range(12):
-                session.start_blackjack(10, f"trace-start-{round_number}")
-                session = reload_session()
-                while session.blackjack.hand and session.blackjack.hand.status in {
-                    "playing",
-                    "insurance",
-                }:
-                    actions = session.blackjack.available_actions(session.player.balance)
-                    self.assertTrue(actions)
-                    action = chooser.choice(actions)
-                    seen_actions.add(action)
-                    session.blackjack_action(action, f"trace-action-{action_count}")
-                    action_count += 1
+            trace_seeds = (7, 11, 29, 47, 73, 101, 251, 91827)
+            for trace_seed in trace_seeds:
+                chooser = random.Random(trace_seed)
+                for round_number in range(8):
+                    request_id = f"{trace_seed}-{round_number}"
+                    session.start_blackjack(10, f"trace-start-{request_id}")
                     session = reload_session()
-                self.assertGreaterEqual(session.player.balance, 0)
-                self.assertIsNotNone(session.blackjack.hand)
-                self.assertNotIn(session.blackjack.hand.status, {"playing", "insurance"})
+                    while session.blackjack.hand and session.blackjack.hand.status in {
+                        "playing",
+                        "insurance",
+                    }:
+                        actions = session.blackjack.available_actions(session.player.balance)
+                        self.assertTrue(actions)
+                        action = chooser.choice(actions)
+                        seen_actions.add(action)
+                        session.blackjack_action(action, f"trace-action-{action_count}")
+                        action_count += 1
+                        previous_state = session.state()
+                        session = reload_session()
+                        self.assertEqual(session.state(), previous_state)
+                    self.assertGreaterEqual(session.player.balance, 0)
+                    self.assertIsNotNone(session.blackjack.hand)
+                    self.assertNotIn(session.blackjack.hand.status, {"playing", "insurance"})
 
             db = sqlite3.connect(path)
             try:
@@ -490,14 +503,14 @@ class BlackjackRulesTests(unittest.TestCase):
                 db.close()
             self.assertEqual(ledger_total, saved_balance)
             self.assertEqual(session.player.balance, saved_balance)
-            self.assertEqual(len(session.player.rounds), 12)
+            self.assertEqual(len(session.player.rounds), len(trace_seeds) * 8)
             self.assertIn("insurance", seen_actions)
 
     def test_two_sessions_serialize_wallet_updates_without_lost_rounds(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "shared.sqlite3"
-            first = CasinoSession(PlayerRepository(path))
-            second = CasinoSession(PlayerRepository(path))
+            first = CasinoService(PlayerRepository(path))
+            second = CasinoService(PlayerRepository(path))
             for session in (first, second):
                 session.games["slots"].play_at_stops = lambda bet, stops: GameResult(
                     "slots", "Слоты", "Проигрыш", bet, 0, "детерминированный проигрыш"
@@ -509,7 +522,7 @@ class BlackjackRulesTests(unittest.TestCase):
                 first_result.result()
                 second_result.result()
 
-            player = CasinoSession(PlayerRepository(path)).state()["player"]
+            player = CasinoService(PlayerRepository(path)).state()["player"]
             self.assertEqual(player["balance"], 2480)
             self.assertEqual(player["rounds_played"], 2)
             db = sqlite3.connect(path)
@@ -527,8 +540,8 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_concurrent_retries_with_same_key_settle_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "shared.sqlite3"
-            first = CasinoSession(PlayerRepository(path))
-            second = CasinoSession(PlayerRepository(path))
+            first = CasinoService(PlayerRepository(path))
+            second = CasinoService(PlayerRepository(path))
             for session in (first, second):
                 session.games["slots"].play_at_stops = lambda bet, stops: GameResult(
                     "slots", "Слоты", "Проигрыш", bet, 0, "детерминированный проигрыш"
@@ -539,7 +552,7 @@ class BlackjackRulesTests(unittest.TestCase):
                 second_result = pool.submit(second.play, "slots", 10, "", "same-request")
                 self.assertEqual(first_result.result(), second_result.result())
 
-            player = CasinoSession(PlayerRepository(path)).state()["player"]
+            player = CasinoService(PlayerRepository(path)).state()["player"]
             self.assertEqual(player["balance"], 2490)
             self.assertEqual(player["rounds_played"], 1)
             db = sqlite3.connect(path)
@@ -571,6 +584,17 @@ class BlackjackRulesTests(unittest.TestCase):
                     response={},
                 )
 
+            with self.assertRaisesRegex(ValueError, "Typed ledger movements"):
+                repository.save(
+                    player,
+                    request_key="untyped-movement",
+                    signature="test",
+                    ledger_entries=[("profile_adjustment", -1)],
+                    response={},
+                )
+            with self.assertRaisesRegex(ValueError, "non-empty reason"):
+                LedgerMovement.adjustment(-1, " ")
+
             self.assertEqual(repository.load().balance, 2500)
             self.assertIsNone(repository.get_request_response("invalid-movement"))
 
@@ -584,13 +608,14 @@ class BlackjackRulesTests(unittest.TestCase):
                 player,
                 request_key="loss",
                 signature="test",
-                ledger_entries=[("bet", -10)],
+                ledger_entries=[LedgerMovement(LedgerEntryType.BET_STAKE, -10)],
                 response={},
             )
             db = sqlite3.connect(path)
             try:
                 db.execute(
-                    "UPDATE ledger SET balance_after=balance_after+1 WHERE request_key='loss' AND entry_type='bet'"
+                    "UPDATE ledger SET balance_after=balance_after+1 "
+                    "WHERE request_key='loss' AND entry_type='bet_stake'"
                 )
                 db.commit()
             finally:
@@ -616,7 +641,7 @@ class BlackjackRulesTests(unittest.TestCase):
                         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                     INSERT INTO ledger(request_key,entry_type,delta,balance_after)
-                    VALUES ('old-loss','bet',-10,2490), ('old-loss','payout',0,2490);
+                    VALUES ('old-loss','bet_stake',-10,2490), ('old-loss','game_payout',0,2490);
                     CREATE TABLE processed_requests (
                         request_key TEXT PRIMARY KEY, response_json TEXT NOT NULL
                     );
@@ -628,7 +653,7 @@ class BlackjackRulesTests(unittest.TestCase):
             PlayerRepository(path)
             db = sqlite3.connect(path)
             try:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
                 rows = db.execute(
                     "SELECT entry_type,delta,balance_after FROM ledger ORDER BY id"
                 ).fetchall()
@@ -636,8 +661,8 @@ class BlackjackRulesTests(unittest.TestCase):
                     rows,
                     [
                         ("opening_balance", 2500, 2500),
-                        ("bet", -10, 2490),
-                        ("payout", 0, 2490),
+                        ("bet_stake", -10, 2490),
+                        ("game_payout", 0, 2490),
                     ],
                 )
             finally:
@@ -652,10 +677,16 @@ class BlackjackRulesTests(unittest.TestCase):
                 player,
                 request_key="test-adjust-balance",
                 signature="test.adjust-balance",
-                ledger_entries=[("test_setup_adjustment", -2490)],
+                ledger_entries=[LedgerMovement.adjustment(-2490, "test fixture balance")],
                 response={},
             )
-            session = CasinoSession(repository)
+            with closing(sqlite3.connect(repository.path)) as db:
+                adjustment = db.execute(
+                    "SELECT entry_type,delta,reason FROM ledger "
+                    "WHERE request_key='test-adjust-balance'"
+                ).fetchone()
+            self.assertEqual(adjustment, ("profile_adjustment", -2490, "test fixture balance"))
+            session = CasinoService(repository)
             rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             session.start_blackjack(10, "start")
 
@@ -666,7 +697,7 @@ class BlackjackRulesTests(unittest.TestCase):
 
     def test_idempotency_key_is_bound_to_operation_and_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            session = CasinoSession(PlayerRepository(Path(directory) / "test.sqlite3"))
+            session = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
             session.start_blackjack(20, "shared-key")
             with self.assertRaisesRegex(ValueError, "другой операции"):
                 session.blackjack_action("stand", "shared-key")
@@ -675,7 +706,7 @@ class BlackjackRulesTests(unittest.TestCase):
 
     def test_session_charges_each_resplit_and_records_the_round_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            session = CasinoSession(PlayerRepository(Path(directory) / "test.sqlite3"))
+            session = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
             rig(
                 session.blackjack,
                 [
@@ -716,7 +747,7 @@ class BlackjackRulesTests(unittest.TestCase):
             raise RuntimeError("simulated shoe failure")
 
         with tempfile.TemporaryDirectory() as directory:
-            start_session = CasinoSession(PlayerRepository(Path(directory) / "start.sqlite3"))
+            start_session = CasinoService(PlayerRepository(Path(directory) / "start.sqlite3"))
             rig(start_session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
             start_shoe = start_session.blackjack.deck.copy()
             start_session.blackjack._draw = fail_draw
@@ -726,7 +757,7 @@ class BlackjackRulesTests(unittest.TestCase):
             self.assertIsNone(start_session.blackjack.hand)
             self.assertEqual(start_session.blackjack.deck, start_shoe)
 
-            action_session = CasinoSession(PlayerRepository(Path(directory) / "action.sqlite3"))
+            action_session = CasinoService(PlayerRepository(Path(directory) / "action.sqlite3"))
             rig(action_session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
             started = action_session.start_blackjack(20, "start")
             before_action = action_session.blackjack.dump_state()

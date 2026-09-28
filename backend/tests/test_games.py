@@ -2,7 +2,7 @@ import unittest
 from fractions import Fraction
 from itertools import product
 
-from casino.games import RED_NUMBERS, Roulette, SlotMachine, SlotRules
+from casino.domain.games import RED_NUMBERS, Roulette, SlotMachine, SlotRules
 
 
 class FixedRandom:

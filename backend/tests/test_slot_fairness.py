@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from casino.errors import IdempotencyConflict
-from casino.session import CasinoSession
-from casino.slot_fairness import new_server_seed, reel_stops, seed_hash
-from casino.storage import PlayerRepository
+from casino.application.errors import IdempotencyConflict
+from casino.application.service import CasinoService
+from casino.domain.slot_fairness import new_server_seed, reel_stops, seed_hash
+from casino.persistence.sqlite import PlayerRepository
 
 
 class SlotFairnessTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class SlotFairnessTests(unittest.TestCase):
     def test_slot_spin_reveals_previous_commitment_and_rotates_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repository = PlayerRepository(Path(directory) / "casino.sqlite3")
-            session = CasinoSession(repository)
+            session = CasinoService(repository)
             committed_hash = session.state()["slots_server_seed_hash"]
 
             response = session.play("slots", 10, "", "spin-key", "client-seed")
@@ -48,7 +48,7 @@ class SlotFairnessTests(unittest.TestCase):
             retry = session.play("slots", 10, "", "spin-key", "client-seed")
             self.assertEqual(retry, response)
             self.assertEqual(session.state()["slots_server_seed_hash"], next_commitment)
-            restored = CasinoSession(PlayerRepository(repository.path))
+            restored = CasinoService(PlayerRepository(repository.path))
             self.assertEqual(restored.state()["slots_server_seed_hash"], next_commitment)
 
             with self.assertRaises(IdempotencyConflict):
@@ -57,15 +57,15 @@ class SlotFairnessTests(unittest.TestCase):
     def test_stale_client_commitment_cannot_spin_a_new_seed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repository = PlayerRepository(Path(directory) / "casino.sqlite3")
-            first = CasinoSession(repository)
-            second = CasinoSession(PlayerRepository(repository.path))
+            first = CasinoService(repository)
+            second = CasinoService(PlayerRepository(repository.path))
             announced_hash = first.state()["slots_server_seed_hash"]
             committed_result = second.play("slots", 10, "", "other-spin", "client-seed")
 
             with self.assertRaisesRegex(ValueError, "Seed для барабанов изменился"):
                 first.play("slots", 10, "", "stale-spin", "client-seed", announced_hash)
             self.assertEqual(
-                CasinoSession(PlayerRepository(repository.path)).state()["player"]["balance"],
+                CasinoService(PlayerRepository(repository.path)).state()["player"]["balance"],
                 committed_result["state"]["player"]["balance"],
             )
 

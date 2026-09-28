@@ -23,27 +23,26 @@ uv run --directory backend python run_api.py
 npm run dev
 ```
 
-API должен слушать loopback `127.0.0.1`. Для Windows-сборки из корня выполните `uv sync --group build`, затем в PowerShell из `frontend/` выберите Rustup MSVC toolchain и соберите установщики:
+API должен слушать loopback `127.0.0.1`. Для Windows-сборки из корня выполните `uv sync --group build`, затем из `frontend/` соберите установщик. Tauri запускает `npm run build:desktop` перед bundle: команда собирает Python sidecar и frontend assets.
 
-```powershell
-$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-npm run tauri build
-```
+`npm run tauri build` и `npm run tauri:dev` автоматически выбирают rustup toolchain `stable-x86_64-pc-windows-msvc`, загружают MSVC/Windows SDK через `VsDevCmd` и используют отдельный каталог `frontend/build/tauri-msvc` для Cargo. Нужны rustup, Visual Studio C++ x64 tools и Windows SDK. На текущей машине обе цели собираются в MSI и NSIS; установленный runtime требует отдельного smoke.
 
 ## Архитектура backend
 
 ```text
-api.py       HTTP-модели, маршруты, преобразование ошибок; без игровых правил
-api_schemas.py Входные и выходные DTO с проверкой формы API
-session.py   CasinoSession: валидация намерения, orchestration, lock и атомарное сохранение
-core.py      Общие лимиты ставок, источник случайности и контракт однократной игры
-games.py     Слоты и рулетка с их правилами и таблицами выплат
-blackjack.py Правила блэкджека, раздача и восстановление сохранённого состояния
-models.py    Player, Card и GameResult — доменные данные
-storage.py   PlayerRepository: SQLite, импорт старого JSON, ledger и идемпотентность
+api.py, api_schemas.py, api_errors.py   FastAPI composition, HTTP и DTO
+application/commands.py                Транзакционные игровые/wallet use cases
+application/queries.py                 Read-side state projection
+application/ports.py                   CasinoRepository protocol
+application/service.py                 CasinoService и кэш состояния/revision
+domain/                                 Правила, игровые модели, ledger types, verifier
+persistence/sqlite.py                   SQLite adapter и атомарная запись агрегата
+persistence/migrations.py               Schema migrations v0–v4
+persistence/codecs.py                    Сохранения и совместимость форматов
+recovery.py, process_lock.py             Offline recovery и process lock
 ```
 
-`CasinoGame` задаёт контракт для слотов и рулетки с одним действием; blackjack хранит состояние раздачи и принимает отдельные действия игрока. Каталог получает сведения об игре через `catalog_info()`. Игры получают `RandomSource` и проверенные правила через композицию. `CasinoSession` связывает игры с профилем и хранилищем. `PlayerRepository` изолирует SQL от домена. `RLock` упорядочивает действия в одной сессии; SQLite `BEGIN IMMEDIATE` сериализует полную операцию между соединениями, а revision заставляет устаревшие сессии перечитать профиль и руку перед действием. Ledger проверяется по цепочке балансов при запуске и каждом изменении.
+`CasinoService` координирует application commands через `CasinoRepository` и типизированные read/write Unit of Work; `PlayerRepository` реализует порт на SQLite, а connection остаётся внутри persistence adapter. Каждая команда работает в одной `BEGIN IMMEDIATE` транзакции и сохраняет профиль, активную раздачу, историю, типизированные ledger movements и idempotency response вместе. `CasinoGame` остаётся контрактом для one-shot слотов и рулетки; blackjack — отдельный stateful aggregate. Верхнеуровневые `casino.session`, `casino.storage`, `casino.blackjack` и соседние модули остаются compatibility exports для внешних callers; production код и основная тестовая suite используют новые пакеты.
 
 Активная раздача blackjack хранит идентификатор, связанный с записями её ставок; при восстановлении сохранённая сумма ставок сверяется с ledger. Старые снимки без такого идентификатора продолжают загружаться, но для них эта дополнительная сверка недоступна. Состав башмака проверяется по всем шести колодам. Новый башмак создаётся на границе раздач, когда осталось меньше 60 карт.
 
@@ -95,7 +94,7 @@ POST /api/refill
 {"idempotency_key": "uuid"}
 ```
 
-Ошибки доменной валидации идут как HTTP 400 с `detail`; request validation FastAPI возвращает HTTP 422 с тем же полем `detail`. Неоднозначный или повторно использованный idempotency key возвращает HTTP 409. Неизвестные поля запроса запрещены. DTO проверяют и форму ответов сервера; текущие URL и поля состояния сохранены. Повторный запрос с тем же ключом вернёт ранее сохранённый ответ. API предназначен только для loopback-доступа.
+Ошибки имеют поля `code` и `detail`: неверная игровая команда — 400 (`invalid_request`), неверный sidecar token — 401 (`unauthorized`), конфликт idempotency или устаревший slot commitment — 409 (`idempotency_conflict` или `stale_game_state`), ошибка формы запроса — 422 (`invalid_request`). Неизвестные поля запроса запрещены. DTO проверяют форму ответов сервера; существующие URL и поля успешного состояния сохранены. Повторный запрос с тем же ключом и телом вернёт ранее сохранённый ответ. API предназначен только для loopback-доступа.
 
 Для `/api/blackjack/action` допустимы `hit`, `stand`, `double`, `split`, `surrender`, `insurance` и `decline_insurance`. Ответ `/api/state` содержит фазу раздачи, список `hands`, индекс активной руки и `available_actions`; интерфейс включает кнопки по этому списку. Запрос слотов может включать `client_seed` и `expected_server_seed_hash`; устаревший commitment отклоняется до ставки, чтобы два процесса не выдали непроверяемый результат.
 
@@ -103,10 +102,10 @@ POST /api/refill
 
 - **Инкапсуляция:** `Blackjack` владеет состоянием колоды/руки и проверяет действия только в активном состоянии.
 - **Абстракция:** `CasinoGame.play()` и `RandomSource` задают минимальные контракты.
-- **Полиморфизм:** `CasinoSession` публикует сведения об играх и запускает конкретную игру через общий контракт.
-- **Композиция:** игра получает RNG и конфигурацию правил; session получает репозиторий; HTTP слой зависит от application service.
+- **Полиморфизм:** каталог публикует сведения о слотах и рулетке через общий контракт `CasinoGame`; blackjack сохраняет собственную state machine.
+- **Композиция:** игра получает RNG и конфигурацию правил; `CasinoService` получает repository port; `create_app()` принимает application service.
 - **Разделение ответственности:** транспорт, orchestration, правила домена и SQL находятся в отдельных модулях.
 
 ## Проверки
 
-Правила блэкджека и HTTP-контракт проверяются детерминированными тестами: `uv run --directory backend python -m unittest discover -s tests -q`. Статические проверки backend: `uv run --group quality ruff check backend/casino backend/tests`, `uv run --group quality ruff format --check backend/casino backend/tests` и `uv run --group quality --directory backend mypy --python-version 3.10 casino`. Для синтаксиса выполните `uv run python -m compileall -q backend/casino`; из `frontend/` — `npm run build` и `npm run lint`.
+Backend-команды из корня: `uv run --directory backend --group test python -m unittest discover -s tests -q`, `uv run --directory backend --group quality ruff check casino tests run_api.py`, `uv run --directory backend --group quality ruff format --check casino tests run_api.py`, `uv run --directory backend --group quality mypy --python-version 3.10 casino`. Группа `test` содержит Hypothesis для генерации игровых трасс. Frontend-команды из `frontend/`: `npm run test:unit`, `npm run lint`, `npm run build`, `npm run build:desktop`. `npm run tauri build` собирает Windows installer; установленный runtime и sidecar lifecycle нужно smoke-проверить отдельно.

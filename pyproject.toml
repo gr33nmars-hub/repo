@@ -20,6 +20,9 @@ quality = [
     "mypy>=1.13",
     "ruff>=0.11",
 ]
+test = [
+    "hypothesis>=6.168.0",
+]
 
 [tool.ruff]
 target-version = "py310"

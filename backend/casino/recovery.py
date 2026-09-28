@@ -9,9 +9,9 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from casino.application.service import CasinoService
+from casino.persistence.sqlite import PlayerRepository
 from casino.process_lock import BackendProcessLock
-from casino.session import CasinoSession
-from casino.storage import PlayerRepository
 
 
 def validate_database(path: Path) -> None:
@@ -30,7 +30,7 @@ def validate_database(path: Path) -> None:
             target.close()
             source.close()
         repository = PlayerRepository(copy_path)
-        CasinoSession(repository)
+        CasinoService(repository)
 
 
 def _raw_sqlite_backup(source: Path, destination: Path) -> Path:
@@ -72,6 +72,30 @@ def backup_database(source: Path, destination: Path) -> Path:
     return backed_up
 
 
+def _prepare_restore_destination(destination: Path) -> None:
+    """Checkpoint an existing destination so its WAL cannot affect the restored file."""
+    sidecars = [Path(f"{destination}-wal"), Path(f"{destination}-shm")]
+    if not destination.exists():
+        if any(path.exists() for path in sidecars):
+            raise RuntimeError("Restore destination has orphaned SQLite sidecar files")
+        return
+
+    try:
+        db = sqlite3.connect(destination, timeout=10)
+        try:
+            db.execute("PRAGMA busy_timeout = 10000")
+            checkpoint = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if checkpoint is not None and checkpoint[0] != 0:
+                raise RuntimeError("Cannot restore while the destination WAL is busy")
+            mode = db.execute("PRAGMA journal_mode = DELETE").fetchone()
+            if mode is None or mode[0].lower() != "delete":
+                raise RuntimeError("Cannot disable destination WAL before restore")
+        finally:
+            db.close()
+    except sqlite3.Error as error:
+        raise RuntimeError("Unable to prepare restore destination safely") from error
+
+
 def restore_database(source: Path, destination: Path, *, replace: bool = False) -> Path:
     source, destination = source.resolve(), destination.resolve()
     with BackendProcessLock(destination):
@@ -103,11 +127,12 @@ def _restore_database_locked(source: Path, destination: Path, *, replace: bool) 
                 )
                 suffix += 1
             _raw_sqlite_backup(destination, backup_path)
+        _prepare_restore_destination(destination)
         os.replace(staged, destination)
         return destination
     finally:
-        for suffix in ("", "-wal", "-shm"):
-            candidate = Path(f"{staged}{suffix}")
+        for file_suffix in ("", "-wal", "-shm"):
+            candidate = Path(f"{staged}{file_suffix}")
             if candidate.exists():
                 candidate.unlink()
 

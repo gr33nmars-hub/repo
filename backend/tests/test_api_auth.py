@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 _test_data = tempfile.TemporaryDirectory()
@@ -14,10 +15,14 @@ _previous_save_path = os.environ.get("NOIR_CASINO_SAVE_PATH")
 os.environ["NOIR_CASINO_SAVE_PATH"] = str(Path(_test_data.name) / "casino.sqlite3")
 from casino.api import app, casino  # noqa: E402 - configure isolated save path before import
 from casino.api_schemas import CasinoStateResponse, PlayRequest  # noqa: E402
-from casino.session import CasinoSession  # noqa: E402
-from casino.storage import PlayerRepository  # noqa: E402
+from casino.application.service import CasinoService  # noqa: E402
+from casino.persistence.sqlite import PlayerRepository  # noqa: E402
 
 api_module = sys.modules["casino.api"]
+API_CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "api-contract-v1.json"
+
+if hasattr(casino, "resolve"):
+    casino.resolve()
 
 if _previous_save_path is None:
     os.environ.pop("NOIR_CASINO_SAVE_PATH", None)
@@ -78,10 +83,12 @@ class ApiTokenTests(unittest.TestCase):
     def setUp(self) -> None:
         self.previous_token = app.state.api_token
         self.previous_nonce = app.state.api_instance_nonce
+        self.previous_shutdown = app.state.request_shutdown
 
     def tearDown(self) -> None:
         app.state.api_token = self.previous_token
         app.state.api_instance_nonce = self.previous_nonce
+        app.state.request_shutdown = self.previous_shutdown
 
     def test_api_remains_unguarded_when_no_token_is_configured(self) -> None:
         app.state.api_token = None
@@ -96,20 +103,49 @@ class ApiTokenTests(unittest.TestCase):
         app.state.api_token = "launch-secret"
         app.state.api_instance_nonce = "expected-nonce"
 
-        missing_status, _, _ = asyncio.run(asgi_request("GET", "/api/health"))
-        wrong_status, _, _ = asyncio.run(
+        contract = json.loads(API_CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+        missing_status, _, missing_body = asyncio.run(asgi_request("GET", "/api/health"))
+        wrong_status, _, wrong_body = asyncio.run(
             asgi_request("GET", "/api/state", {"X-Noir-Api-Token": "wrong"})
         )
         valid_status, _, valid_body = asyncio.run(
             asgi_request("GET", "/api/health", {"X-Noir-Api-Token": "launch-secret"})
         )
 
-        self.assertEqual(missing_status, 401)
-        self.assertEqual(wrong_status, 401)
+        self.assertEqual(missing_status, contract["unauthorized"]["status"])
+        self.assertEqual(wrong_status, contract["unauthorized"]["status"])
+        self.assertEqual(sorted(json.loads(missing_body)), contract["unauthorized"]["fields"])
+        self.assertEqual(json.loads(wrong_body)["code"], contract["unauthorized"]["code"])
         self.assertEqual(valid_status, 200)
         health = json.loads(valid_body)
         self.assertEqual(health["instance_nonce"], "expected-nonce")
         self.assertNotIn("launch-secret", valid_body.decode("utf-8"))
+
+    def test_shutdown_requires_token_and_only_runs_for_a_sidecar(self) -> None:
+        calls: list[str] = []
+        app.state.api_token = "shutdown-secret"
+        app.state.request_shutdown = lambda: calls.append("requested")
+
+        missing_status, _, _ = asyncio.run(asgi_request("POST", "/api/shutdown"))
+        valid_status, _, valid_body = asyncio.run(
+            asgi_request(
+                "POST",
+                "/api/shutdown",
+                {"X-Noir-Api-Token": "shutdown-secret"},
+            )
+        )
+
+        self.assertEqual(missing_status, 401)
+        self.assertEqual(valid_status, 200)
+        self.assertEqual(json.loads(valid_body), {"status": "shutting_down"})
+        self.assertEqual(calls, ["requested"])
+
+        app.state.api_token = None
+        app.state.request_shutdown = lambda: calls.append("unsafe")
+        no_token_status, _, no_token_body = asyncio.run(asgi_request("POST", "/api/shutdown"))
+        self.assertEqual(no_token_status, 404)
+        self.assertEqual(json.loads(no_token_body)["code"], "not_found")
+        self.assertEqual(calls, ["requested"])
 
     def test_health_nonce_matches_only_the_configured_instance(self) -> None:
         app.state.api_token = None
@@ -180,15 +216,26 @@ class ApiTokenTests(unittest.TestCase):
             )
 
         with tempfile.TemporaryDirectory() as directory:
-            state = CasinoSession(PlayerRepository(Path(directory) / "state.sqlite3")).state()
+            state = CasinoService(PlayerRepository(Path(directory) / "state.sqlite3")).state()
             validated = CasinoStateResponse.model_validate(state)
             self.assertEqual(validated.player.balance, state["player"]["balance"])
             self.assertIsNone(validated.blackjack)
 
     def test_http_response_models_preserve_public_payload_shape(self) -> None:
+        contract = json.loads(API_CONTRACT_FIXTURE.read_text(encoding="utf-8"))
         status, _, body = asyncio.run(asgi_request("GET", "/api/state"))
-        self.assertEqual(status, 200)
+        self.assertEqual(status, contract["state"]["status"])
         state = json.loads(body)
+        self.assertEqual(sorted(state), contract["state"]["top_level"])
+        self.assertEqual(sorted(state["player"]), contract["state"]["player"])
+        self.assertEqual(
+            sorted(next(game for game in state["games"] if game["id"] == "slots")),
+            contract["state"]["slots_game"],
+        )
+        self.assertEqual(
+            sorted(next(game for game in state["games"] if game["id"] == "roulette")),
+            contract["state"]["roulette_game"],
+        )
         self.assertIsNone(state["blackjack"])
         self.assertIn("paytable", next(game for game in state["games"] if game["id"] == "slots"))
         self.assertNotIn(
@@ -205,13 +252,17 @@ class ApiTokenTests(unittest.TestCase):
                 ).encode(),
             )
         )
-        self.assertEqual(status, 200)
+        self.assertEqual(status, contract["roulette_play"]["status"])
         result = json.loads(body)
+        self.assertEqual(sorted(result), contract["roulette_play"]["top_level"])
+        self.assertEqual(sorted(result["result"]), contract["roulette_play"]["result"])
         self.assertIn("result", result)
         self.assertNotIn("symbols", result["result"])
+        self.assertEqual(result["result"]["rule_version"], "roulette-v1")
+        self.assertEqual(result["state"]["history"][0]["verification_status"], "verified")
         self.assertIsNone(result["state"]["blackjack"])
 
-        status, _, _ = asyncio.run(
+        status, _, body = asyncio.run(
             asgi_request(
                 "POST",
                 "/api/games/roulette/play",
@@ -221,9 +272,11 @@ class ApiTokenTests(unittest.TestCase):
                 ).encode(),
             )
         )
-        self.assertEqual(status, 422)
+        self.assertEqual(status, contract["validation_error"]["status"])
+        self.assertEqual(sorted(json.loads(body)), contract["validation_error"]["fields"])
+        self.assertEqual(json.loads(body)["code"], contract["validation_error"]["code"])
 
-        status, _, _ = asyncio.run(
+        status, _, body = asyncio.run(
             asgi_request(
                 "POST",
                 "/api/games/roulette/play",
@@ -233,7 +286,9 @@ class ApiTokenTests(unittest.TestCase):
                 ).encode(),
             )
         )
-        self.assertEqual(status, 400)
+        self.assertEqual(status, contract["domain_error"]["status"])
+        self.assertEqual(sorted(json.loads(body)), contract["domain_error"]["fields"])
+        self.assertEqual(json.loads(body)["code"], contract["domain_error"]["code"])
 
     def test_ambiguous_legacy_idempotency_key_returns_conflict(self) -> None:
         db = sqlite3.connect(casino.repository.path)
@@ -255,13 +310,74 @@ class ApiTokenTests(unittest.TestCase):
             )
         )
         self.assertEqual(status, 409)
+        self.assertEqual(json.loads(body)["code"], "idempotency_conflict")
         self.assertIn("старой версии", json.loads(body)["detail"])
+
+    def test_lost_http_response_retries_same_key_after_service_restart_once(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "retry.sqlite3"
+            previous_session = api_module.casino
+            payload = {
+                "bet": 10,
+                "choice": "red",
+                "idempotency_key": "lost-response-retry",
+            }
+            request_body = json.dumps(payload).encode()
+            headers = {"Content-Type": "application/json"}
+            try:
+                api_module.casino = CasinoService(PlayerRepository(path))
+                first_status, _, first_body = asyncio.run(
+                    asgi_request("POST", "/api/games/roulette/play", headers, request_body)
+                )
+                self.assertEqual(first_status, 200)
+                # Drop the first response as if the WebView closed before receiving it.
+
+                api_module.casino = CasinoService(PlayerRepository(path))
+                retry_status, _, retry_body = asyncio.run(
+                    asgi_request("POST", "/api/games/roulette/play", headers, request_body)
+                )
+                self.assertEqual(retry_status, 200)
+                self.assertEqual(json.loads(retry_body), json.loads(first_body))
+
+                conflict_status, _, conflict_body = asyncio.run(
+                    asgi_request(
+                        "POST",
+                        "/api/games/roulette/play",
+                        headers,
+                        json.dumps({**payload, "bet": 20}).encode(),
+                    )
+                )
+                self.assertEqual(conflict_status, 409)
+                self.assertEqual(json.loads(conflict_body)["code"], "idempotency_conflict")
+                self.assertIn("другой операции", json.loads(conflict_body)["detail"])
+            finally:
+                api_module.casino = previous_session
+
+            with closing(sqlite3.connect(path)) as db:
+                self.assertEqual(
+                    db.execute(
+                        "SELECT COUNT(*) FROM processed_requests WHERE request_key=?",
+                        (payload["idempotency_key"],),
+                    ).fetchone()[0],
+                    1,
+                )
+                self.assertEqual(
+                    db.execute(
+                        "SELECT COUNT(*) FROM ledger WHERE request_key=?",
+                        (payload["idempotency_key"],),
+                    ).fetchone()[0],
+                    2,
+                )
+                self.assertEqual(
+                    db.execute("SELECT balance FROM profile WHERE id=1").fetchone()[0],
+                    json.loads(first_body)["state"]["player"]["balance"],
+                )
 
     def test_stale_slot_commitment_returns_conflict_and_refreshes_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "shared.sqlite3"
-            first = CasinoSession(PlayerRepository(path))
-            second = CasinoSession(PlayerRepository(path))
+            first = CasinoService(PlayerRepository(path))
+            second = CasinoService(PlayerRepository(path))
             stale_hash = first.state()["slots_server_seed_hash"]
             second.play("slots", 10, "", "newer-spin", "client-seed")
             previous_api_session = api_module.casino
@@ -284,6 +400,7 @@ class ApiTokenTests(unittest.TestCase):
                     )
                 )
                 self.assertEqual(status, 409)
+                self.assertEqual(json.loads(body)["code"], "stale_game_state")
                 self.assertIn("Seed", json.loads(body)["detail"])
                 self.assertEqual(first.refresh_state()["player"]["rounds_played"], 1)
             finally:

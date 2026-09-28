@@ -52,6 +52,11 @@ export interface RoundResult {
     client_seed: string
     nonce: number
   }
+  rule_version?: string
+  rules_fingerprint?: string
+  rules_snapshot?: Record<string, unknown>
+  outcome?: Record<string, unknown>
+  verification_status?: 'verified' | 'invalid' | 'legacy-unverified'
   played_at: string
 }
 

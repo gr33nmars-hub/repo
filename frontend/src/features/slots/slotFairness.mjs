@@ -2,12 +2,35 @@ function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export async function verifySlotRound(round, game, announcedHash) {
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+export async function verifySlotRound(round, _game, announcedHash) {
   const proof = round.fairness
-  const strips = game.reel_strips
-  if (!proof || !strips || proof.nonce !== 0 || !/^[0-9a-f]{64}$/.test(proof.server_seed)
-    || strips.length !== 3 || round.reel_stops?.length !== 3 || round.symbols?.length !== 3
+  const rules = round.rules_snapshot
+  if (!proof || proof.nonce !== 0 || !/^[0-9a-f]{64}$/.test(proof.server_seed)
+    || round.rule_version !== 'slots-v1' || !round.rules_fingerprint || !rules
+    || !Array.isArray(rules.reels) || !Array.isArray(rules.triples)
+    || rules.triples.some((entry) => !entry || typeof entry.symbol !== 'string'
+      || !Number.isSafeInteger(entry.multiplier) || entry.multiplier < 0)
+    || !Number.isSafeInteger(rules.pair_multiplier) || rules.pair_multiplier < 0
+    || round.reel_stops?.length !== 3 || round.symbols?.length !== 3
+    || !round.outcome || JSON.stringify(round.outcome.reel_stops) !== JSON.stringify(round.reel_stops)
+    || JSON.stringify(round.outcome.symbols) !== JSON.stringify(round.symbols)
     || proof.server_seed_hash !== announcedHash) return false
+
+  const strips = rules.reels
+  if (strips.length !== 3) return false
+  const fingerprintPayload = { version: round.rule_version, rules }
+  const fingerprint = bytesToHex(new Uint8Array(await crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode(canonicalJson(fingerprintPayload)),
+  )))
+  if (fingerprint !== round.rules_fingerprint) return false
 
   const encoder = new TextEncoder()
   const hash = await crypto.subtle.digest('SHA-256', encoder.encode(proof.server_seed))
@@ -34,7 +57,7 @@ export async function verifySlotRound(round, game, announcedHash) {
 
   const symbols = round.symbols
   const multiplier = symbols[0] === symbols[1] && symbols[1] === symbols[2]
-    ? game.paytable?.find(({ symbol }) => symbol === symbols[0])?.multiplier
-    : new Set(symbols).size === 2 ? game.pair_multiplier : 0
+    ? rules.triples.find(({ symbol }) => symbol === symbols[0])?.multiplier
+    : new Set(symbols).size === 2 ? rules.pair_multiplier : 0
   return round.payout === round.bet * (multiplier ?? 0)
 }

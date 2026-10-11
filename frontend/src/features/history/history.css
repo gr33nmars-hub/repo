@@ -12,6 +12,7 @@
 .history-round-amounts dd { margin: 0; color: #deded5; font: 11px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .history-round-amounts .is-positive dd { color: var(--color-emerald); }
 .history-round-amounts .is-negative dd { color: var(--color-danger); }
+.history-round > .fairness-panel { grid-column: 1 / -1; margin: 0; padding: 10px 0 2px; }
 .history-state { min-height: 350px; display: grid; align-content: center; justify-items: start; gap: 10px; padding: 20px 0; }
 .history-state h1, .history-state h2 { margin: 0; color: var(--color-ink); font-size: 22px; font-weight: 500; }
 .history-state p { max-width: 58ch; margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }

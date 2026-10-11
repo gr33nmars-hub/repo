@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from casino.domain.models import GameResult
 
@@ -16,8 +15,11 @@ class CasinoSaveCodec:
         return json.dumps([round_.to_dict() for round_ in rounds], ensure_ascii=False)
 
     @staticmethod
-    def decode_history(value: str) -> Any:
-        return json.loads(value)
+    def decode_history(value: str) -> list[dict]:
+        decoded = json.loads(value)
+        if not isinstance(decoded, list) or any(not isinstance(item, dict) for item in decoded):
+            raise ValueError("Saved round history must be a list of objects")
+        return decoded
 
     @staticmethod
     def encode_blackjack(snapshot: dict | None) -> str | None:
@@ -25,7 +27,12 @@ class CasinoSaveCodec:
 
     @staticmethod
     def decode_blackjack(value: str | None) -> dict | None:
-        return json.loads(value) if value else None
+        if not value:
+            return None
+        decoded = json.loads(value)
+        if not isinstance(decoded, dict):
+            raise ValueError("Saved blackjack state must be an object")
+        return decoded
 
     @staticmethod
     def encode_object(value: dict) -> str:
@@ -33,4 +40,7 @@ class CasinoSaveCodec:
 
     @staticmethod
     def decode_object(value: str) -> dict:
-        return json.loads(value)
+        decoded = json.loads(value)
+        if not isinstance(decoded, dict):
+            raise ValueError("Saved response must be an object")
+        return decoded

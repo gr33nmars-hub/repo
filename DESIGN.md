@@ -119,7 +119,7 @@ Charcoal green-black grounds the app, warm near-white carries text, and brass or
 
 ## Layout
 
-Desktop uses a persistent 226px navigation rail and a flexible main pane. At the 920px application minimum, the rail contracts and the lobby companion ledger moves below the table register. The 1280×860 default window supports a two-column lobby. Content stays scrollable in shorter windows; table rows are a vertical register, not a repeated card grid.
+Desktop uses a persistent 226px navigation rail and a flexible main pane. The rail contains the NOIR wordmark, room navigation, and the virtual-chip balance/refill action; room content owns its own title, so the shell has no separate top header. At the 920px application minimum, the rail contracts and the lobby companion ledger moves below the table register. The 1280×860 default window supports a two-column lobby. Content stays scrollable in shorter windows; table rows are a vertical register, not a repeated card grid.
 
 ## Elevation & Depth
 
@@ -129,9 +129,11 @@ The system is mostly flat. Use distinct dark tones, borders, and space to establ
 
 Shell surfaces, table rows, and navigation are square-cornered. Circular clipping is reserved for the hostess portrait and player initial. Borders are fine and low contrast at rest, with stronger contrast for keyboard focus and active controls.
 
+The blackjack play surface keeps its rounded table silhouette, but uses a thin dark-green edge and tonal felt shading. Dealer and player zones are separated by space; the rule text sits between them without a decorative arc. Cards, scores, and the current wager stay visually stronger than the table decoration.
+
 ## Components
 
-- **Persistent navigation:** authored SVG pictograms, exact room labels, a clear active state, and `aria-current` on the selected room.
+- **Persistent navigation:** a typographic NOIR wordmark, authored SVG pictograms, exact room labels, a brass active edge, and `aria-current` on the selected room. The virtual-chip balance keeps its amount and unit on one line; the refill action sits below it.
 - **Table register:** one row per server-provided game, with the API name and wager limits, concise rule context, and a button-sized entry target.
 - **Player ledger:** current balance, rounds, wins/win rate, and turnover from API state.
 - **Recent rounds:** short list of API results with sign-coded profit and an explicit empty state.

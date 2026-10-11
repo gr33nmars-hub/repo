@@ -14,7 +14,6 @@ export function useCasino() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [retryAvailable, setRetryAvailable] = useState(false)
-  const [lastRound, setLastRound] = useState<string | null>(null)
   const retryOperation = useRef<(() => Promise<void>) | null>(null)
 
   const refresh = useCallback(async () => {
@@ -56,13 +55,13 @@ export function useCasino() {
     setError(caught instanceof Error ? caught.message : fallback)
   }
 
-  const act = useCallback(async function runStateOperation(operation: () => Promise<CasinoState>, notice?: string) {
+  const act = useCallback(async function runStateOperation(operation: () => Promise<CasinoState>) {
     setBusy(true)
     setError(null)
     try {
       const next = await operation()
-      setState(next)
-      if (notice) setLastRound(notice)
+      const current = await casinoApi.state().catch(() => next)
+      setState(current)
       retryOperation.current = null
       setRetryAvailable(false)
       return true
@@ -70,7 +69,7 @@ export function useCasino() {
       handleMutationFailure(
         caught,
         'Не удалось выполнить действие',
-        async () => { await runStateOperation(operation, notice) },
+        async () => { await runStateOperation(operation) },
       )
       return false
     } finally {
@@ -88,11 +87,13 @@ export function useCasino() {
     setError(null)
     try {
       const response = await casinoApi.play(game, bet, choice, expectedServerSeedHash)
-      setState(response.state)
-      setLastRound(response.result.message)
+      const current = await casinoApi.state().catch(() => response.state)
+      setState(current)
       retryOperation.current = null
       setRetryAvailable(false)
-      return response.result
+      return current.history.find((round) => (
+        round.game_id === response.result.game_id && round.played_at === response.result.played_at
+      )) ?? response.result
     } catch (caught) {
       handleMutationFailure(
         caught,
@@ -105,8 +106,8 @@ export function useCasino() {
     }
   }, [])
 
-  const startBlackjack = useCallback((bet: number) =>
-    act(() => casinoApi.startBlackjack(bet), 'Карты розданы'), [act])
+  const startBlackjack = useCallback((bet: number, expectedHash?: string) =>
+    act(() => casinoApi.startBlackjack(bet, expectedHash)), [act])
 
   const blackjackAction = useCallback((action: BlackjackAction) =>
     act(() => casinoApi.blackjackAction(action)), [act])
@@ -116,8 +117,10 @@ export function useCasino() {
     setError(null)
     try {
       const { balance } = await casinoApi.refill()
-      setState((current) => current ? { ...current, player: { ...current.player, balance } } : current)
-      setLastRound('Баланс пополнен')
+      const current = await casinoApi.state().catch(() => null)
+      setState(current ?? ((previous) => previous
+        ? { ...previous, player: { ...previous.player, balance } }
+        : previous))
       retryOperation.current = null
       setRetryAvailable(false)
       return true
@@ -160,14 +163,12 @@ export function useCasino() {
     busy,
     error,
     retryAvailable,
-    lastRound,
     refresh,
     retry,
     play,
     startBlackjack,
     blackjackAction,
     refill,
-    clearNotice: () => setLastRound(null),
     clearError: () => setError(null),
   }
 }

@@ -103,6 +103,7 @@ class CasinoStateResponse(BaseModel):
     history: list[RoundResultResponse]
     blackjack: BlackjackStateResponse | None
     slots_server_seed_hash: str | None = None
+    server_seed_hash: str | None = None
 
 
 class PlayResponse(BaseModel):

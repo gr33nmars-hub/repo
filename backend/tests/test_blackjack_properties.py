@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import random
 import sqlite3
 import tempfile
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 from casino.application.service import CasinoService
 from casino.persistence.sqlite import PlayerRepository
@@ -23,11 +25,21 @@ class BlackjackPersistenceMachine(RuleBasedStateMachine):
         self._random_seed = 0
         self._request_number = 0
         self._session: CasinoService | None = None
+        self._seed_counter = 0
+        self._seed_patcher = None
 
     @initialize(seed=st.integers(min_value=0, max_value=2**32 - 1))
     def open_profile(self, seed: int) -> None:
         self._random_seed = seed
+        self._seed_counter = 0
+        self._seed_patcher = patch("secrets.token_hex", side_effect=self._next_seed)
+        self._seed_patcher.start()
         self._reload()
+
+    def _next_seed(self, nbytes: int = 32) -> str:
+        value = hashlib.sha256(f"{self._random_seed}:{self._seed_counter}".encode()).hexdigest()
+        self._seed_counter += 1
+        return value[: nbytes * 2]
 
     def _reload(self) -> None:
         self._session = CasinoService(PlayerRepository(self._database_path))
@@ -90,6 +102,8 @@ class BlackjackPersistenceMachine(RuleBasedStateMachine):
         assert committed_balance == balance
 
     def teardown(self) -> None:
+        if self._seed_patcher is not None:
+            self._seed_patcher.stop()
         self._temporary_directory.cleanup()
 
 

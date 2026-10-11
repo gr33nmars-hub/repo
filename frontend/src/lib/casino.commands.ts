@@ -1,9 +1,16 @@
 import type { CasinoState } from '../types'
-import { createPendingMutationStore, type PendingMutation } from './pendingMutations.mjs'
+import {
+  createPendingMutationStore,
+  handlePendingMutationFailure,
+  sendWithPendingMutation,
+  type PendingMutation,
+} from './pendingMutations.mjs'
+import { isAllowedMutation, isPendingMutationRecord } from './mutationContract.mjs'
 import { CasinoApiError, requestApi } from './httpClient'
 
 const PENDING_REQUESTS_STORAGE_KEY = 'noir-casino.pending-requests.v1'
 const SLOT_CLIENT_SEED_KEY = 'noir-casino.slot-client-seed.v1'
+const FAIR_CLIENT_SEED_KEY = 'noir-casino.fair-client-seed.v1'
 const requestKey = () => crypto.randomUUID()
 let volatileSlotClientSeed: string | undefined
 
@@ -20,12 +27,31 @@ function slotClientSeed(): string {
   }
 }
 
+function fairClientSeed(): string {
+  try {
+    const existing = localStorage.getItem(FAIR_CLIENT_SEED_KEY)
+    if (existing) return existing
+    const seed = crypto.randomUUID()
+    localStorage.setItem(FAIR_CLIENT_SEED_KEY, seed)
+    return seed
+  } catch {
+    volatileSlotClientSeed ??= 'browser-' + requestKey()
+    return volatileSlotClientSeed
+  }
+}
+
 const pendingMutationStore = createPendingMutationStore(PENDING_REQUESTS_STORAGE_KEY)
 const readPendingMutations = () => {
   const mutations = pendingMutationStore.read()
   if (!pendingMutationStore.isSafe()) {
     throw new CasinoApiError(
       'Сохранённая запись запроса повреждена; новые действия заблокированы.',
+      0,
+    )
+  }
+  if (Object.entries(mutations).some(([operation, pending]) => !isPendingMutationRecord(operation, pending))) {
+    throw new CasinoApiError(
+      'Сохранённая запись запроса не соответствует допустимому действию; новые действия заблокированы.',
       0,
     )
   }
@@ -60,6 +86,9 @@ export function reconciledConflictState(error: unknown): CasinoState | null {
 }
 
 export async function requestMutation<T>(operation: string, path: string, payload: object): Promise<T> {
+  if (!isAllowedMutation(operation, path, payload)) {
+    throw new CasinoApiError('Недопустимый игровой запрос.', 0)
+  }
   const mutations = readPendingMutations()
   const serializedPayload = JSON.stringify({ path, payload })
   const pending = mutations[operation]
@@ -71,47 +100,37 @@ export async function requestMutation<T>(operation: string, path: string, payloa
   }
   const active: PendingMutation = pending ?? { key: requestKey(), payload: serializedPayload }
   mutations[operation] = active
-  if (!writePendingMutations(mutations)) {
-    throw new CasinoApiError(
+  const clearPending = (request: PendingMutation) => {
+    const latest = readPendingMutations()
+    if (latest[operation]?.key === request.key) {
+      delete latest[operation]
+      writePendingMutations(latest)
+    }
+  }
+  return sendWithPendingMutation<T, PendingMutation>({
+    active,
+    persist: () => writePendingMutations(mutations),
+    send: () => requestApi<T>(path, {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, idempotency_key: active.key }),
+    }),
+    clear: clearPending,
+    onFailure: (error: unknown) => handlePendingMutationFailure(error, {
+      fetchState: () => requestApi<CasinoState>('/api/state'),
+      clearPending: () => clearPending(active),
+      isDefinitive: isDefinitiveMutationRejection,
+      makeConflictError: (conflict, state) => {
+        const apiConflict = conflict as CasinoApiError
+        return new CasinoApiError(apiConflict.message, 409, state, apiConflict.code)
+      },
+      hasReconciledState: (failure) => failure instanceof CasinoApiError
+        && Boolean(failure.reconciledState),
+    }),
+    persistenceError: () => new CasinoApiError(
       'Не удалось сохранить запрос для безопасного повтора. Действие не отправлено.',
       0,
-    )
-  }
-  const response = await requestApi<T>(path, {
-    method: 'POST',
-    body: JSON.stringify({ ...payload, idempotency_key: active.key }),
-  }).catch(async (error: unknown) => {
-    if (error instanceof CasinoApiError && error.status === 409) {
-      try {
-        const reconciledState = await requestApi<CasinoState>('/api/state')
-        const latest = readPendingMutations()
-        if (latest[operation]?.key === active.key) {
-          delete latest[operation]
-          writePendingMutations(latest)
-        }
-        throw new CasinoApiError(error.message, 409, reconciledState, error.code)
-      } catch (reconciliationError) {
-        if (reconciliationError instanceof CasinoApiError && reconciliationError.reconciledState) {
-          throw reconciliationError
-        }
-        throw error
-      }
-    }
-    if (isDefinitiveMutationRejection(error)) {
-      const latest = readPendingMutations()
-      if (latest[operation]?.key === active.key) {
-        delete latest[operation]
-        writePendingMutations(latest)
-      }
-    }
-    throw error
+    ),
   })
-  const latest = readPendingMutations()
-  if (latest[operation]?.key === active.key) {
-    delete latest[operation]
-    writePendingMutations(latest)
-  }
-  return response
 }
 
 export async function retryPendingMutation(): Promise<boolean> {
@@ -143,6 +162,19 @@ export function slotMutationPayload(
     bet,
     choice: '',
     client_seed: slotClientSeed(),
+    ...(expectedServerSeedHash ? { expected_server_seed_hash: expectedServerSeedHash } : {}),
+  }
+}
+
+export function fairMutationPayload(
+  bet: number,
+  choice: string,
+  expectedServerSeedHash?: string,
+): Record<string, unknown> {
+  return {
+    bet,
+    choice,
+    client_seed: fairClientSeed(),
     ...(expectedServerSeedHash ? { expected_server_seed_hash: expectedServerSeedHash } : {}),
   }
 }

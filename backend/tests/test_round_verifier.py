@@ -213,6 +213,40 @@ class RoundVerifierTests(unittest.TestCase):
         legacy = GameResult("roulette", "Рулетка", "Победа", 10, 20, "Красное").to_dict()
         self.assertEqual(verification_status(legacy), "legacy-unverified")
 
+    def test_legacy_round_with_rule_data_is_checked_before_unverified_status(self) -> None:
+        legacy = Roulette(rng=FixedRandom(1)).play(25, "red").to_dict()
+        self.assertEqual(verification_status(legacy), "legacy-unverified")
+
+        legacy["outcome"]["number"] = 2
+        self.assertEqual(verification_status(legacy), "invalid")
+
+    def test_blackjack_proof_binds_recorded_draw_order_to_seed(self) -> None:
+        server_seed = "00" * 32
+        game = Blackjack()
+        game.start(
+            20,
+            fairness={
+                "server_seed": server_seed,
+                "server_seed_hash": seed_hash(server_seed),
+                "client_seed": "round-verifier-test",
+                "nonce": 0,
+            },
+            server_seed=server_seed,
+            client_seed="round-verifier-test",
+        )
+        while game.hand and game.hand.status in {"playing", "insurance"}:
+            action = "decline_insurance" if game.hand.status == "insurance" else "stand"
+            game.act(action, 1000)
+        recorded = game.result().to_dict()
+
+        self.assertEqual(verification_status(recorded), "verified")
+        tampered = {**recorded, "outcome": {**recorded["outcome"]}}
+        tampered["outcome"]["draw_order"] = list(recorded["outcome"]["draw_order"])
+        tampered["outcome"]["draw_order"][0] = (
+            "A♠" if tampered["outcome"]["draw_order"][0] != "A♠" else "K♠"
+        )
+        self.assertEqual(verification_status(tampered), "invalid")
+
     def test_corrupt_blackjack_hand_is_invalid_instead_of_raising(self) -> None:
         game = self._blackjack_with_draws([("A", "♠"), ("9", "♣"), ("K", "♠"), ("7", "♣")])
         recorded = game.result().to_dict()

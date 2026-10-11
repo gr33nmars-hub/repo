@@ -16,9 +16,12 @@ On Windows, `scripts/tauri.mjs` selects the rustup `stable-x86_64-pc-windows-msv
 
 - `src/App.tsx` composes navigation and feature pages.
 - `src/features/` contains blackjack, roulette, slots, and history UI.
+- `src/features/shared/FairnessPanel.tsx` displays commitments and reveal proofs in each game and in saved history; `fairness.mjs` independently replays the browser-verifiable parts.
 - `src/hooks/useCasino.ts` owns UI state and operation feedback.
 - `src/lib/casino.api.ts` declares endpoint operations; `httpClient.ts` handles HTTP; `casino.commands.ts` persists pending mutations and retries.
 - `src/platform/desktopBackend.ts` starts the Tauri sidecar, checks its token/instance nonce, and stops it when the window closes.
 - `src-tauri/` configures the native window, permissions, sidecar, and installer bundle.
 
-Run `npm run lint` and `npm run test:unit` for frontend checks. `npm run tauri build` has produced both configured Windows bundles; sidecar shutdown, retry after restart, and restore still need an installed-app smoke check.
+HTTP requests have a 15-second timeout. A timeout or connection failure leaves a mutation's original route, payload, and idempotency key pending, because the server may have committed it before the response was lost. Retry that exact request; a 409 refreshes state and clears the conflict instead.
+
+Run `npm run lint`, `npm run test:unit`, and `npm run build` for frontend checks. `npm run smoke:sidecar` exercises the packaged Windows sidecar's token check, game request, graceful shutdown, save restoration after restart, and idempotent retry after restart using a temporary save. It does not launch the installed GUI application.

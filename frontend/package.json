@@ -12,6 +12,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:unit": "node --test tests/*.test.mjs",
+    "smoke:sidecar": "node scripts/smoke-sidecar.mjs",
     "preview": "vite preview",
     "tauri": "node ./scripts/tauri.mjs"
   },

@@ -1,12 +1,9 @@
 [project]
 name = "noir-casino"
 version = "0.1.0"
-description = "Локальное казино на Python с архитектурой ООП"
+description = "Backend domain and API for a local virtual-chip casino"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-    { name = "Flet developer", email = "you@example.com" }
-]
 dependencies = [
     "fastapi>=0.121.0",
     "uvicorn[standard]>=0.38.0",

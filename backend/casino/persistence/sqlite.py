@@ -157,6 +157,10 @@ class PlayerRepository:
                     "INSERT OR IGNORE INTO metadata(key,value) VALUES('slots_server_seed',?)",
                     (secrets.token_hex(32),),
                 )
+                db.execute(
+                    "INSERT OR IGNORE INTO metadata(key,value) "
+                    "SELECT 'server_seed',value FROM metadata WHERE key='slots_server_seed'"
+                )
                 db.commit()
             except Exception:
                 if db.in_transaction:
@@ -318,19 +322,31 @@ class PlayerRepository:
         return int(row["value"]) if row else 0
 
     @staticmethod
-    def load_slot_seed(db: sqlite3.Connection) -> str:
-        row = db.execute("SELECT value FROM metadata WHERE key='slots_server_seed'").fetchone()
+    def load_server_seed(db: sqlite3.Connection) -> str:
+        row = db.execute("SELECT value FROM metadata WHERE key='server_seed'").fetchone()
         if (
             row is None
             or len(row["value"]) != 64
             or any(character not in "0123456789abcdef" for character in row["value"])
         ):
-            raise RuntimeError("Slot seed commitment is missing or invalid")
+            raise RuntimeError("Server seed commitment is missing or invalid")
         return row["value"]
 
     @staticmethod
+    def load_slot_seed(db: sqlite3.Connection) -> str:
+        """Compatibility alias for the former slot-only commitment API."""
+        return PlayerRepository.load_server_seed(db)
+
+    @staticmethod
+    def set_server_seed(db: sqlite3.Connection, seed: str) -> None:
+        db.execute(
+            "UPDATE metadata SET value=? WHERE key IN ('server_seed','slots_server_seed')", (seed,)
+        )
+
+    @staticmethod
     def set_slot_seed(db: sqlite3.Connection, seed: str) -> None:
-        db.execute("UPDATE metadata SET value=? WHERE key='slots_server_seed'", (seed,))
+        """Compatibility alias for the former slot-only commitment API."""
+        PlayerRepository.set_server_seed(db, seed)
 
     def load(self, db: sqlite3.Connection | None = None) -> Player:
         if db is None:
@@ -511,8 +527,14 @@ class SQLiteUnitOfWork:
     def load_slot_seed(self) -> str:
         return self._repository.load_slot_seed(self._connection)
 
+    def load_server_seed(self) -> str:
+        return self._repository.load_server_seed(self._connection)
+
     def set_slot_seed(self, seed: str) -> None:
         self._repository.set_slot_seed(self._connection, seed)
+
+    def set_server_seed(self, seed: str) -> None:
+        self._repository.set_server_seed(self._connection, seed)
 
     def get_request_response(
         self, request_key: str, *, signature: str | None = None

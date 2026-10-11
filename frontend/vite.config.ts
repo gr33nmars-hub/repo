@@ -5,11 +5,13 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
+    strictPort: true,
     fs: {
       allow: ['..'],
     },
     watch: {
-      ignored: ['**/build/**', '**/src-tauri/target/**'],
+      ignored: ['**/build/**', '**/src-tauri/target/**', '**/src-tauri/binaries/**'],
     },
   },
 })

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Literal, cast
 from uuid import uuid4
@@ -8,7 +9,9 @@ from .core import GameRules, RandomSource, SecureRandom
 from .errors import InvalidCasinoCommand
 from .ledger import LedgerEntryType, LedgerMovement
 from .models import Card, GameResult
+from .provably_fair import shuffle as fair_shuffle
 from .rule_metadata import fingerprint_rules
+from .slot_fairness import seed_hash
 
 BlackjackAction = Literal[
     "hit", "stand", "double", "split", "surrender", "insurance", "decline_insurance"
@@ -81,6 +84,8 @@ class BlackjackRound:
     insurance_payout: int = 0
     initial_bet: int = 0
     round_id: str | None = None
+    fairness: dict | None = None
+    draw_order: list[str] | None = None
 
     @property
     def bet(self) -> int:
@@ -111,6 +116,7 @@ class Blackjack:
         self.hand: BlackjackRound | None = None
         self.deck: list[Card] = []
         self.discarded_cards: list[Card] = []
+        self._draw_trace: list[str] | None = None
 
     @property
     def minimum_bet(self) -> int:
@@ -147,16 +153,26 @@ class Blackjack:
     def _draw(self) -> Card:
         if not self.deck:
             raise ValueError("В башмаке закончились карты")
-        return self.deck.pop()
+        card = self.deck.pop()
+        trace = self._draw_trace
+        if trace is not None:
+            trace.append(card.label)
+        return card
 
-    def _new_shoe(self) -> None:
+    def _new_shoe(
+        self, server_seed: str | None = None, client_seed: str = "", nonce: int = 0
+    ) -> None:
         self.deck = [
             Card(rank, suit)
             for _ in range(self.blackjack_rules.decks)
             for suit in self.suits
             for rank in self.ranks
         ]
-        self._rng.shuffle(self.deck)
+        if server_seed is None:
+            self._rng.shuffle(self.deck)
+        else:
+            fair_shuffle(self.deck, server_seed, client_seed, nonce)
+            self.deck.reverse()  # _draw pops from the end.
         self.discarded_cards = []
 
     def _archive_completed_round(self) -> None:
@@ -165,7 +181,15 @@ class Blackjack:
             self.discarded_cards.extend(self.hand.dealer_cards)
             self.discarded_cards.extend(card for hand in self.hand.hands for card in hand.cards)
 
-    def start(self, bet: int) -> BlackjackRound:
+    def start(
+        self,
+        bet: int,
+        *,
+        fairness: dict | None = None,
+        server_seed: str | None = None,
+        client_seed: str = "",
+        nonce: int = 0,
+    ) -> BlackjackRound:
         if (
             type(bet) is not int
             or not self.minimum_bet <= bet <= self.rules.maximum_bet
@@ -177,17 +201,26 @@ class Blackjack:
             )
         if self.hand and self.hand.status in {"playing", "insurance"}:
             raise InvalidCasinoCommand("Сначала закончи текущую раздачу")
-        # Reshuffle between rounds only; keep enough cards for four long hands.
-        if len(self.deck) < 60:
+        # Committed rounds use a reproducible shoe whose draw order can be verified.
+        if server_seed is not None:
+            self._new_shoe(server_seed, client_seed, nonce)
+        elif len(self.deck) < 60:
             self._new_shoe()
         elif self.hand is not None:
             self._archive_completed_round()
+        draw_order: list[str] = []
+        self._draw_trace = draw_order
         player = [self._draw()]
         dealer = [self._draw()]
         player.append(self._draw())
         dealer.append(self._draw())
         self.hand = BlackjackRound(
-            [PlayerHand(player, bet)], dealer, initial_bet=bet, round_id=uuid4().hex
+            [PlayerHand(player, bet)],
+            dealer,
+            initial_bet=bet,
+            round_id=uuid4().hex,
+            fairness=fairness,
+            draw_order=draw_order,
         )
         if dealer[0].rank == "A":
             self.hand.status = "insurance"
@@ -488,6 +521,8 @@ class Blackjack:
             "insurance_bet": round_.insurance_bet,
             "insurance_payout": round_.insurance_payout,
         }
+        if round_.fairness is not None:
+            outcome["draw_order"] = round_.draw_order or []
         return GameResult(
             self.game_id,
             self.name,
@@ -499,6 +534,7 @@ class Blackjack:
             rules_fingerprint=fingerprint_rules(self.rule_version, snapshot),
             rules_snapshot=snapshot,
             outcome=outcome,
+            fairness=round_.fairness,
         )
 
     def _rules_snapshot(self) -> dict[str, object]:
@@ -572,7 +608,7 @@ class Blackjack:
         round_ = self.hand
         if round_ is None:
             return None
-        return {
+        state = {
             "version": 5,
             "deck": [c.label for c in self.deck],
             "discarded_cards": [c.label for c in self.discarded_cards],
@@ -598,10 +634,15 @@ class Blackjack:
             "initial_bet": round_.initial_bet,
             "round_id": round_.round_id,
         }
+        if round_.fairness is not None:
+            state["fairness"] = round_.fairness
+            state["draw_order"] = list(round_.draw_order or [])
+        return state
 
     def restore_state(self, state: dict | None) -> None:
         if state is None:
             self.hand, self.deck, self.discarded_cards = None, [], []
+            self._draw_trace = None
             return
         if not isinstance(state, dict):
             raise ValueError("Некорректное состояние раздачи блэкджека")
@@ -611,6 +652,11 @@ class Blackjack:
             self._validate_saved_round(round_)
             self.deck, self.hand = deck, round_
             self.discarded_cards = discarded
+            self._draw_trace = (
+                self.hand.draw_order
+                if self.hand.status in {"playing", "insurance"} and self.hand.fairness is not None
+                else None
+            )
             return
         self._restore_legacy_state(state)
 
@@ -720,7 +766,15 @@ class Blackjack:
             state["insurance_payout"],
             initial_bet,
             state.get("round_id"),
+            state.get("fairness") if type(state.get("fairness")) is dict else None,
+            state.get("draw_order") if type(state.get("draw_order")) is list else [],
         )
+        if state.get("version") == 5 and (
+            ("fairness" in state and type(state["fairness"]) is not dict)
+            or ("draw_order" in state and type(state["draw_order"]) is not list)
+            or (("fairness" in state) != ("draw_order" in state))
+        ):
+            raise ValueError("Некорректное состояние раздачи блэкджека")
         return deck, discarded, round_
 
     def _validate_saved_round(self, round_: BlackjackRound) -> None:
@@ -844,8 +898,44 @@ class Blackjack:
                 else "push"
             )
             valid = valid and round_.status == expected_status
+        if round_.fairness is not None:
+            valid = valid and self._validate_saved_proof(round_)
+        elif round_.draw_order:
+            valid = False
         if not valid:
             raise ValueError("Некорректное состояние раздачи блэкджека")
+
+    def _validate_saved_proof(self, round_: BlackjackRound) -> bool:
+        proof = round_.fairness
+        draw_order = round_.draw_order
+        if type(proof) is not dict or type(draw_order) is not list or len(draw_order) < 4:
+            return False
+        server_seed = proof.get("server_seed")
+        client_seed = proof.get("client_seed")
+        nonce = proof.get("nonce")
+        if (
+            type(server_seed) is not str
+            or len(server_seed) != 64
+            or any(char not in "0123456789abcdef" for char in server_seed)
+            or proof.get("server_seed_hash") != seed_hash(server_seed)
+            or type(client_seed) is not str
+            or type(nonce) is not int
+            or nonce < 0
+            or any(type(label) is not str for label in draw_order)
+        ):
+            return False
+        shoe = [
+            f"{rank}{suit}"
+            for _ in range(self.blackjack_rules.decks)
+            for suit in self.suits
+            for rank in self.ranks
+        ]
+        fair_shuffle(shoe, server_seed, client_seed, nonce)
+        if len(draw_order) > len(shoe) or draw_order != shoe[: len(draw_order)]:
+            return False
+        dealt = [card.label for card in round_.dealer_cards]
+        dealt.extend(card.label for hand in round_.hands for card in hand.cards)
+        return Counter(dealt) == Counter(draw_order)
 
     def _restore_legacy_state(self, state: dict) -> None:
         # Preserve an in-progress single-deck save from the previous version.

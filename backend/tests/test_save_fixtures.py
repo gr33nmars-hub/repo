@@ -17,6 +17,38 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class SavedDataFixtureTests(unittest.TestCase):
+    def test_saved_json_columns_reject_valid_json_with_wrong_top_level_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "casino.sqlite3"
+            repository = PlayerRepository(path)
+            with closing(sqlite3.connect(path)) as db:
+                db.execute("UPDATE profile SET rounds_json='{}' WHERE id=1")
+                db.commit()
+
+            with self.assertRaisesRegex(ValueError, "history must be a list"):
+                repository.load()
+
+            with closing(sqlite3.connect(path)) as db:
+                db.execute("UPDATE profile SET rounds_json='[null]' WHERE id=1")
+                db.commit()
+
+            with self.assertRaisesRegex(ValueError, "history must be a list of objects"):
+                repository.load()
+
+            with closing(sqlite3.connect(path)) as db:
+                db.execute("UPDATE profile SET rounds_json='[]', blackjack_json='[]' WHERE id=1")
+                db.execute(
+                    "INSERT INTO processed_requests(request_key,response_json,signature) "
+                    "VALUES('bad-response','[]','test')"
+                )
+                db.commit()
+
+            with self.assertRaisesRegex(ValueError, "blackjack state must be an object"):
+                repository.load_blackjack()
+
+            with self.assertRaisesRegex(ValueError, "Saved response must be an object"):
+                repository.get_request_response("bad-response", signature="test")
+
     def test_blackjack_v2_through_v5_fixtures_restore_and_continue(self) -> None:
         for version in range(2, 6):
             with self.subTest(version=version):
@@ -92,6 +124,42 @@ class SavedDataFixtureTests(unittest.TestCase):
             with closing(sqlite3.connect(path)) as db:
                 after = db.execute("SELECT balance,rounds_json FROM profile WHERE id=1").fetchone()
                 self.assertEqual(tuple(after), tuple(before))
+                self.assertEqual(
+                    db.execute("SELECT SUM(delta) FROM ledger").fetchone()[0], ledger_before
+                )
+
+    def test_corrupt_active_blackjack_proof_is_rejected_without_rewriting_database(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "casino.sqlite3"
+            repository = PlayerRepository(path)
+            session = CasinoService(repository)
+            session.start_blackjack(20, "proof-snapshot")
+
+            with closing(sqlite3.connect(path)) as db:
+                snapshot_json = db.execute(
+                    "SELECT blackjack_json FROM profile WHERE id=1"
+                ).fetchone()[0]
+                snapshot = json.loads(snapshot_json)
+                snapshot["draw_order"][0], snapshot["draw_order"][1] = (
+                    snapshot["draw_order"][1],
+                    snapshot["draw_order"][0],
+                )
+                corrupted_json = json.dumps(snapshot, ensure_ascii=False)
+                db.execute("UPDATE profile SET blackjack_json=? WHERE id=1", (corrupted_json,))
+                db.commit()
+                profile_before = db.execute(
+                    "SELECT balance,rounds_json,blackjack_json FROM profile WHERE id=1"
+                ).fetchone()
+                ledger_before = db.execute("SELECT SUM(delta) FROM ledger").fetchone()[0]
+
+            with self.assertRaises(ValueError):
+                CasinoService(PlayerRepository(path))
+
+            with closing(sqlite3.connect(path)) as db:
+                profile_after = db.execute(
+                    "SELECT balance,rounds_json,blackjack_json FROM profile WHERE id=1"
+                ).fetchone()
+                self.assertEqual(tuple(profile_after), tuple(profile_before))
                 self.assertEqual(
                     db.execute("SELECT SUM(delta) FROM ledger").fetchone()[0], ledger_before
                 )

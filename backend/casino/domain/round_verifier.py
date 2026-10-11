@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from .games import RED_NUMBERS
+from .provably_fair import bounded_int
+from .provably_fair import shuffle as fair_shuffle
 from .rule_metadata import validate_rule_metadata
 from .slot_fairness import reel_stops, seed_hash
 
@@ -16,7 +18,11 @@ def verification_status(result: dict[str, Any]) -> str:
         for key in ("rule_version", "rules_fingerprint", "rules_snapshot", "outcome")
     ):
         return "legacy-unverified"
-    return "verified" if verify_recorded_round(result) else "invalid"
+    if not verify_recorded_round(result):
+        return "invalid"
+    if result.get("game_id") in {"roulette", "blackjack"} and result.get("fairness") is None:
+        return "legacy-unverified"
+    return "verified"
 
 
 def verify_recorded_round(result: dict[str, Any]) -> bool:
@@ -41,9 +47,9 @@ def verify_recorded_round(result: dict[str, Any]) -> bool:
         if version == "slots-v1":
             return _verify_slots(result, snapshot, outcome)
         if version == "roulette-v1":
-            return _verify_roulette(bet, payout, snapshot, outcome)
+            return _verify_roulette(bet, payout, snapshot, outcome, result.get("fairness"))
         if version == "blackjack-v1":
-            return _verify_blackjack(bet, payout, snapshot, outcome)
+            return _verify_blackjack(bet, payout, snapshot, outcome, result.get("fairness"))
     except (KeyError, TypeError, ValueError, IndexError, OverflowError):
         return False
     else:
@@ -116,7 +122,11 @@ def _verify_slots(
 
 
 def _verify_roulette(
-    bet: int, payout: int, snapshot: dict[str, Any], outcome: dict[str, Any]
+    bet: int,
+    payout: int,
+    snapshot: dict[str, Any],
+    outcome: dict[str, Any],
+    proof: dict[str, Any] | None = None,
 ) -> bool:
     wheel = snapshot.get("wheel")
     red_numbers = snapshot.get("red_numbers")
@@ -133,6 +143,12 @@ def _verify_roulette(
         or type(number) is not int
         or number not in wheel
         or choice not in {"red", "black", "zero"}
+    ):
+        return False
+    if proof is not None and not _valid_proof(proof):
+        return False
+    if proof is not None and number != bounded_int(
+        proof["server_seed"], proof["client_seed"], proof["nonce"], "roulette", 0, 37
     ):
         return False
     expected_color = "zero" if number == 0 else "red" if number in red_numbers else "black"
@@ -189,12 +205,40 @@ def _dealer_draws_follow_rules(cards: list[str], hits_soft_17: bool) -> bool:
 
 
 def _verify_blackjack(
-    bet: int, payout: int, snapshot: dict[str, Any], outcome: dict[str, Any]
+    bet: int,
+    payout: int,
+    snapshot: dict[str, Any],
+    outcome: dict[str, Any],
+    proof: dict[str, Any] | None = None,
 ) -> bool:
     dealer_cards = outcome.get("dealer_cards")
     hands = outcome.get("hands")
     if type(dealer_cards) is not list or not dealer_cards or type(hands) is not list or not hands:
         return False
+    if proof is not None and not _valid_proof(proof):
+        return False
+    if proof is not None:
+        draw_order = outcome.get("draw_order")
+        if (
+            type(draw_order) is not list
+            or not draw_order
+            or any(type(card) is not str for card in draw_order)
+        ):
+            return False
+        shoe = [
+            f"{rank}{suit}"
+            for _ in range(snapshot.get("decks", 0))
+            for suit in ("♠", "♥", "♣", "♦")
+            for rank in ("A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K")
+        ]
+        fair_shuffle(shoe, proof["server_seed"], proof["client_seed"], proof["nonce"])
+        if len(draw_order) > len(shoe) or draw_order != shoe[: len(draw_order)]:
+            return False
+        recorded_cards = dealer_cards + [
+            card for hand in hands if type(hand) is dict for card in hand.get("cards", [])
+        ]
+        if sorted(recorded_cards) != sorted(draw_order):
+            return False
     if any(type(card) is not str or card[-1:] not in {"♠", "♥", "♣", "♦"} for card in dealer_cards):
         return False
     dealer_score, _ = _card_score(dealer_cards)
@@ -334,3 +378,16 @@ def _verify_blackjack(
     if not contenders and len(dealer_cards) != 2:
         return False
     return payout == expected_payout
+
+
+def _valid_proof(proof: dict[str, Any] | None) -> bool:
+    return bool(
+        type(proof) is dict
+        and type(proof.get("server_seed")) is str
+        and len(proof["server_seed"]) == 64
+        and all(char in "0123456789abcdef" for char in proof["server_seed"])
+        and type(proof.get("client_seed")) is str
+        and type(proof.get("nonce")) is int
+        and proof["nonce"] >= 0
+        and proof.get("server_seed_hash") == seed_hash(proof["server_seed"])
+    )

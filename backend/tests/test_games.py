@@ -94,6 +94,19 @@ class PayoutTests(unittest.TestCase):
                 result = Roulette(rng=FixedRandom([number])).play(10, choice)
                 self.assertEqual(result.payout, expected)
 
+    def test_committed_roulette_number_uses_same_settlement_without_changing_rng(self) -> None:
+        for number in range(37):
+            for choice in ("red", "black", "zero"):
+                with self.subTest(number=number, choice=choice):
+                    rng = FixedRandom([number])
+                    game = Roulette(rng=rng)
+                    committed = game.play_at_number(10, choice, number)
+                    self.assertIs(game._rng, rng)
+                    ordinary = game.play(10, choice)
+                    self.assertEqual(committed.outcome, ordinary.outcome)
+                    self.assertEqual(committed.payout, ordinary.payout)
+                    self.assertEqual(committed.message, ordinary.message)
+
 
 if __name__ == "__main__":
     unittest.main()

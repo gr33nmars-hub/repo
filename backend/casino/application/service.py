@@ -28,7 +28,7 @@ class CasinoService:
             self.blackjack.restore_state(saved_blackjack)
             self._validate_active_blackjack_ledger(unit_of_work)
             self._revision = unit_of_work.revision()
-            self._slots_seed = unit_of_work.load_slot_seed()
+            self._server_seed = unit_of_work.load_server_seed()
         self.games: dict[str, CasinoGame] = {
             "slots": SlotMachine(),
             "roulette": Roulette(),
@@ -47,7 +47,7 @@ class CasinoService:
         self.blackjack.restore_state(unit_of_work.load_blackjack())
         self._validate_active_blackjack_ledger(unit_of_work)
         self._revision = revision
-        self._slots_seed = unit_of_work.load_slot_seed()
+        self._server_seed = unit_of_work.load_server_seed()
 
     def refresh_state(self) -> dict:
         """Refresh this process's snapshot before serving a read request."""
@@ -61,7 +61,7 @@ class CasinoService:
                 self.player,
                 (*self.games.values(), self.blackjack),
                 self.blackjack,
-                self._slots_seed,
+                self._server_seed,
             )
 
     def _validate_bet(self, game: CasinoGame | Blackjack, bet: int) -> None:
@@ -105,8 +105,22 @@ class CasinoService:
             self, game_id, bet, choice, request_key, client_seed, expected_server_seed_hash
         )
 
-    def start_blackjack(self, bet: int, request_key: str) -> dict:
-        return casino_commands.start_blackjack(self, bet, request_key)
+    def start_blackjack(
+        self,
+        bet: int,
+        request_key: str,
+        client_seed: str = "",
+        expected_server_seed_hash: str | None = None,
+        legacy_signature_compatible: bool = False,
+    ) -> dict:
+        return casino_commands.start_blackjack(
+            self,
+            bet,
+            request_key,
+            client_seed,
+            expected_server_seed_hash,
+            legacy_signature_compatible,
+        )
 
     def blackjack_action(self, action: BlackjackAction, request_key: str) -> dict:
         return casino_commands.blackjack_action(self, action, request_key)

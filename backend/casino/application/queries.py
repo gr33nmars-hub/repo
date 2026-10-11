@@ -15,7 +15,7 @@ def casino_state(
     player: Player,
     games: Iterable[GameCatalogItem],
     blackjack: Blackjack,
-    slots_seed: str,
+    server_seed: str,
 ) -> dict[str, object]:
     """Build the public state view from one in-memory application snapshot."""
     rounds = []
@@ -37,5 +37,6 @@ def casino_state(
         "games": [game.catalog_info() for game in games],
         "history": rounds,
         "blackjack": blackjack.state(player.balance),
-        "slots_server_seed_hash": seed_hash(slots_seed),
+        "server_seed_hash": seed_hash(server_seed),
+        "slots_server_seed_hash": seed_hash(server_seed),
     }

@@ -193,6 +193,13 @@ class Roulette(CasinoGame):
         if choice not in self.choices:
             raise InvalidCasinoCommand("Выбери красное, чёрное или зеро")
         number = self._rng.choice(EUROPEAN_WHEEL)
+        return self._result_for_number(bet, choice, number)
+
+    def _result_for_number(self, bet: int, choice: str, number: int) -> GameResult:
+        if choice not in self.choices:
+            raise InvalidCasinoCommand("Выбери красное, чёрное или зеро")
+        if type(number) is not int or number not in EUROPEAN_WHEEL:
+            raise ValueError("Invalid roulette number")
         color = "zero" if number == 0 else "red" if number in RED_NUMBERS else "black"
         colors = {"red": "красное", "black": "чёрное", "zero": "зелёное"}
         multiplier = (
@@ -221,3 +228,7 @@ class Roulette(CasinoGame):
             rules_snapshot=snapshot,
             outcome=outcome,
         )
+
+    def play_at_number(self, bet: int, choice: str, number: int) -> GameResult:
+        """Build the ordinary roulette result for a committed wheel pocket."""
+        return self._result_for_number(bet, choice, number)

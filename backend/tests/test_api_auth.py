@@ -180,8 +180,18 @@ class ApiTokenTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("x-noir-api-token", headers.get("access-control-allow-headers", "").lower())
 
-    def test_cors_allows_loopback_dev_port_fallback_but_rejects_public_origin(self) -> None:
+    def test_cors_allows_configured_dev_origins_and_rejects_other_origins(self) -> None:
         allowed_status, allowed_headers, _ = asyncio.run(
+            asgi_request(
+                "OPTIONS",
+                "/api/state",
+                {
+                    "Origin": "http://127.0.0.1:5173",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+        )
+        unexpected_port_status, unexpected_port_headers, _ = asyncio.run(
             asgi_request(
                 "OPTIONS",
                 "/api/state",
@@ -204,8 +214,10 @@ class ApiTokenTests(unittest.TestCase):
 
         self.assertEqual(allowed_status, 200)
         self.assertEqual(
-            allowed_headers.get("access-control-allow-origin"), "http://127.0.0.1:5174"
+            allowed_headers.get("access-control-allow-origin"), "http://127.0.0.1:5173"
         )
+        self.assertEqual(unexpected_port_status, 400)
+        self.assertNotIn("access-control-allow-origin", unexpected_port_headers)
         self.assertEqual(rejected_status, 400)
         self.assertNotIn("access-control-allow-origin", rejected_headers)
 
@@ -372,6 +384,53 @@ class ApiTokenTests(unittest.TestCase):
                     db.execute("SELECT balance FROM profile WHERE id=1").fetchone()[0],
                     json.loads(first_body)["state"]["player"]["balance"],
                 )
+
+    def test_legacy_blackjack_signature_only_matches_when_seed_fields_were_omitted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy-blackjack.sqlite3"
+            previous_api_session = api_module.casino
+            service = CasinoService(PlayerRepository(path))
+            api_module.casino = service
+            key = "old-blackjack-api"
+            old_signature = service._request_signature("blackjack.start", bet=20)
+            cached_response = service.state()
+            try:
+                with closing(sqlite3.connect(path)) as db:
+                    db.execute(
+                        "INSERT INTO processed_requests(request_key,response_json,signature) "
+                        "VALUES(?,?,?)",
+                        (key, json.dumps(cached_response), old_signature),
+                    )
+                    db.commit()
+
+                # The old response must remain replayable when a new service process opens the save.
+                service = CasinoService(PlayerRepository(path))
+                api_module.casino = service
+
+                headers = {"Content-Type": "application/json"}
+                legacy_status, _, legacy_body = asyncio.run(
+                    asgi_request(
+                        "POST",
+                        "/api/blackjack/start",
+                        headers,
+                        json.dumps({"bet": 20, "idempotency_key": key}).encode(),
+                    )
+                )
+                self.assertEqual(legacy_status, 200)
+                self.assertEqual(json.loads(legacy_body), cached_response)
+
+                explicit_seed_status, _, explicit_seed_body = asyncio.run(
+                    asgi_request(
+                        "POST",
+                        "/api/blackjack/start",
+                        headers,
+                        json.dumps({"bet": 20, "client_seed": "", "idempotency_key": key}).encode(),
+                    )
+                )
+                self.assertEqual(explicit_seed_status, 409)
+                self.assertEqual(json.loads(explicit_seed_body)["code"], "idempotency_conflict")
+            finally:
+                api_module.casino = previous_api_session
 
     def test_stale_slot_commitment_returns_conflict_and_refreshes_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

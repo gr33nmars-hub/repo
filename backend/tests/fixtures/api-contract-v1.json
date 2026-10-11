@@ -1,7 +1,7 @@
 {
   "state": {
     "status": 200,
-    "top_level": ["blackjack", "games", "history", "player", "slots_server_seed_hash"],
+    "top_level": ["blackjack", "games", "history", "player", "server_seed_hash", "slots_server_seed_hash"],
     "player": ["balance", "losses", "name", "rounds_played", "total_wagered", "win_rate", "wins"],
     "slots_game": ["id", "maximum_bet", "minimum_bet", "name", "pair_multiplier", "paytable", "reel_strips", "theoretical_return_percent"],
     "roulette_game": ["id", "maximum_bet", "minimum_bet", "name"]
@@ -9,7 +9,7 @@
   "roulette_play": {
     "status": 200,
     "top_level": ["result", "state"],
-    "result": ["bet", "details", "game_id", "game_name", "message", "outcome", "payout", "played_at", "profit", "rule_version", "rules_fingerprint", "rules_snapshot"]
+    "result": ["bet", "details", "fairness", "game_id", "game_name", "message", "outcome", "payout", "played_at", "profit", "rule_version", "rules_fingerprint", "rules_snapshot"]
   },
   "unauthorized": {"status": 401, "fields": ["code", "detail"], "code": "unauthorized"},
   "validation_error": {"status": 422, "fields": ["code", "detail"], "code": "invalid_request"},

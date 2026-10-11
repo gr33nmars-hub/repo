@@ -24,6 +24,8 @@ class CasinoReadUnitOfWork(Protocol):
 
     def load_slot_seed(self) -> str: ...
 
+    def load_server_seed(self) -> str: ...
+
     def get_request_response(
         self, request_key: str, *, signature: str | None = None
     ) -> dict | None: ...
@@ -33,6 +35,8 @@ class CasinoUnitOfWork(CasinoReadUnitOfWork, Protocol):
     """Write operations added to the transaction-scoped persistence view."""
 
     def set_slot_seed(self, seed: str) -> None: ...
+
+    def set_server_seed(self, seed: str) -> None: ...
 
     def save(
         self,

@@ -64,10 +64,6 @@
 .slots-last-round.is-positive div:last-child strong { color: #d8c078; }
 .slots-last-round p { margin: 0; color: #9da99a; font-size: 11px; line-height: 1.5; }
 .slots-console-hint { margin: auto 0 0; padding-top: 26px; color: #a7b0a1; font-size: 11px; line-height: 1.55; }
-.slots-fairness { margin-top: 14px; padding-top: 12px; border-top: 1px solid #434c3e; color: #aeb8a8; font-size: 11px; }
-.slots-fairness summary { cursor: pointer; color: #d6c28b; font: 600 10px var(--mono); letter-spacing: .08em; }
-.slots-fairness p { margin: 12px 0 4px; }
-.slots-fairness code { display: block; overflow-wrap: anywhere; color: #d9d9c6; font: 10px/1.45 var(--mono); }
 
 .slots-paytable { margin-top: 37px; }
 .slots-paytable-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 16px; }
@@ -93,15 +89,12 @@
 @media (hover: hover) and (pointer: fine) {
   .slots-page .game-action-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 1px 0 #fff0b3, 0 7px 0 #765327, 0 14px 20px rgb(0 0 0 / 34%); }
   .slots-page .game-bet-adjust button:hover:not(:disabled) { border-color: #b29a60; background: #252b22; }
-  .slots-fairness summary:hover { color: #f1dba4; }
 }
 .slots-page .game-action-primary { transition: transform var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui), border-color var(--motion-fast) var(--ease-ui), box-shadow var(--motion-fast) var(--ease-ui); }
-.slots-fairness summary { transition: color var(--motion-fast) var(--ease-ui); }
-.slots-fairness summary:focus-visible { outline: 2px solid var(--color-brass-strong); outline-offset: 4px; }
 .slots-table.is-winning .slots-machine { animation: slots-win-settle 240ms cubic-bezier(.2,.7,.2,1) both; }
 @keyframes slots-win-settle { from { transform: scale(.992); } to { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .slots-page .game-action-primary, .slots-fairness summary { transition: none; }
+  .slots-page .game-action-primary { transition: none; }
   .slots-page .game-action-primary:hover:not(:disabled) { transform: none; }
   .slots-table.is-winning .slots-machine { animation: none; }
 }

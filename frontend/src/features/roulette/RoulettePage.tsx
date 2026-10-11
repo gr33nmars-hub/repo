@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameInfo, RoundResult, RouletteChoice } from '../../types'
 import { BetControl } from '../shared/BetControl'
+import { FairnessPanel } from '../shared/FairnessPanel'
 import './roulette.css'
 
 interface Props {
@@ -9,9 +10,12 @@ interface Props {
   amount: number
   choice: RouletteChoice
   busy: boolean
+  blocked?: boolean
   onAmountChange: (value: string) => void
   onChoice: (choice: RouletteChoice) => void
   onPlay: () => Promise<RoundResult | null>
+  serverSeedHash?: string
+  initialRound?: RoundResult
 }
 
 // Clockwise order on a single-zero European wheel, starting at the pointer.
@@ -35,7 +39,14 @@ function sector(index: number) {
   return `M ${point(136, first)} A 136 136 0 0 1 ${point(136, last)} L ${point(106, last)} A 106 106 0 0 0 ${point(106, first)} Z`
 }
 
-function resultNumber(details: string): number | null {
+function resultNumber(round: RoundResult | null): number | null {
+  if (round?.game_id !== 'roulette') return null
+  const outcome = round.outcome
+  const recorded = outcome && 'number' in outcome ? outcome.number : undefined
+  if (typeof recorded === 'number' && Number.isInteger(recorded) && recorded >= 0 && recorded <= 36) return recorded
+  if (!round) return null
+  // Older saved rounds did not include a machine-readable roulette outcome.
+  const details = round.details
   const match = /^\s*(\d{1,2})\s*·/.exec(details)
   const number = match ? Number(match[1]) : -1
   return Number.isInteger(number) && number >= 0 && number <= 36 ? number : null
@@ -45,9 +56,9 @@ function colorOf(number: number) {
   return number === 0 ? 'zero' : reds.has(number) ? 'red' : 'black'
 }
 
-export function RoulettePage({ game, balance, amount, choice, busy, onAmountChange, onChoice, onPlay }: Props) {
+export function RoulettePage({ game, balance, amount, choice, busy, blocked = false, onAmountChange, onChoice, onPlay, serverSeedHash, initialRound }: Props) {
   const [spinning, setSpinning] = useState(false)
-  const [result, setResult] = useState<RoundResult | null>(null)
+  const [result, setResult] = useState<RoundResult | null>(initialRound ?? null)
   const rotor = useRef<SVGGElement>(null)
   const ball = useRef<HTMLDivElement>(null)
   const frame = useRef<number | null>(null)
@@ -127,7 +138,7 @@ export function RoulettePage({ game, balance, amount, choice, busy, onAmountChan
   }
 
   async function playRound() {
-    if (locked.current || busy) return
+    if (locked.current || busy || blocked) return
     locked.current = true
     setResult(null)
     setSpinning(true)
@@ -137,7 +148,7 @@ export function RoulettePage({ game, balance, amount, choice, busy, onAmountChan
     try {
       const next = await onPlay()
       if (!mounted.current || !next) return
-      const number = resultNumber(next.details)
+      const number = resultNumber(next)
       if (number !== null) {
         if (reduced) draw((360 - pockets.indexOf(number) * step) % 360, 0)
         else await stopOn(number)
@@ -154,19 +165,17 @@ export function RoulettePage({ game, balance, amount, choice, busy, onAmountChan
     }
   }
 
-  const number = result ? resultNumber(result.details) : null
+  const number = resultNumber(result)
   const color = number === null ? null : colorOf(number)
 
   return (
     <div className="roulette-page">
       <header className="game-page-heading roulette-heading">
-        <div><span className="roulette-eyebrow">NOIR / СТОЛ 02</span><h1>{game.name}</h1><p>Европейское колесо · одно зеро · 37 секторов</p></div>
-        <span className="roulette-table-id">ROULETTE / 01</span>
+        <div><h1>{game.name}</h1><p>Европейское колесо · одно зеро · 37 секторов</p></div>
       </header>
 
       <section className="roulette-table" aria-label="Игровой стол рулетки">
         <div className="roulette-wheel-stage">
-          <span className="roulette-stage-label">КОЛЕСО</span>
           <div className="roulette-wheel" role="img" aria-label={spinning ? 'Колесо вращается' : number === null ? 'Колесо готово к игре' : `Шарик остановился на ${number}, ${color === 'zero' ? 'зеро' : color === 'red' ? 'красное' : 'чёрное'}`}>
             <svg className="roulette-wheel-art" viewBox="0 0 320 320" aria-hidden="true">
               <defs>
@@ -197,14 +206,13 @@ export function RoulettePage({ game, balance, amount, choice, busy, onAmountChan
               <small>{spinning ? 'В ИГРЕ' : number === null ? 'NOIR' : 'ВЫПАЛО'}</small>
             </div>
           </div>
-          <span className="roulette-stage-footer">EUROPEAN SINGLE ZERO</span>
         </div>
 
         <div className="roulette-betting">
-          <div className="roulette-betting-head"><span>01 / СТАВКА НА ЦВЕТ</span><h2>Куда ставим?</h2><p>Выбери поле и запусти колесо. Выплата указана с учётом ставки.</p></div>
+          <div className="roulette-betting-head"><h2>Куда ставим?</h2><p>Выбери поле и запусти колесо. Выплата указана с учётом ставки.</p></div>
           <div className="roulette-choice-list" role="group" aria-label="Исход ставки">
             {choices.map((option) => (
-              <button className={`roulette-choice roulette-choice--${option.id}${choice === option.id ? ' is-selected' : ''}`} type="button" key={option.id} aria-pressed={choice === option.id} disabled={busy || spinning} onClick={() => onChoice(option.id)}>
+              <button className={`roulette-choice roulette-choice--${option.id}${choice === option.id ? ' is-selected' : ''}`} type="button" key={option.id} aria-pressed={choice === option.id} disabled={busy || blocked || spinning} onClick={() => onChoice(option.id)}>
                 <span className="roulette-choice-chip" aria-hidden="true" />
                 <span className="roulette-choice-copy"><strong>{option.label}</strong><small>{option.detail}</small></span>
                 <span className="roulette-choice-odds">{option.odds}</span>
@@ -222,10 +230,11 @@ export function RoulettePage({ game, balance, amount, choice, busy, onAmountChan
             <div className="roulette-result-copy"><span>ПОСЛЕДНИЙ СПИН</span><strong>{result.message}</strong><small>{result.details}</small></div>
             <div className="roulette-result-money"><span>Выплата {result.payout.toLocaleString('ru-RU')}</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
           </section>
-        ) : <div className="roulette-ready" role="status"><span className={`roulette-ready-light${spinning ? ' is-active' : ''}`} />{spinning ? 'Шарик в игре. Ждём сектор…' : 'Стол открыт. Сделай ставку.'}</div>}
+        ) : <div className="roulette-ready" role="status"><span className={`roulette-ready-light${spinning ? ' is-active' : ''}`} />{blocked ? 'Стол закрыт, пока идёт раздача блэкджека.' : spinning ? 'Шарик в игре. Ждём сектор…' : 'Стол открыт. Сделай ставку.'}</div>}
       </div>
 
-      <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
+      <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} disabled={blocked} actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
+      <FairnessPanel commitment={serverSeedHash} round={result ?? undefined} game={game} />
     </div>
   )
 }

@@ -1,6 +1,10 @@
 import type { CasinoState } from '../types'
 import { apiBase } from './apiConfig'
 import { apiHeaders, prepareBackend } from '../platform/desktopBackend'
+import { decodeApiResponse } from './apiResponse.mjs'
+import { RequestTimeoutError, withRequestTimeout } from './requestTimeout.mjs'
+
+const REQUEST_TIMEOUT_MS = 15_000
 
 export class CasinoApiError extends Error {
   readonly status: number
@@ -17,19 +21,34 @@ export class CasinoApiError extends Error {
 }
 
 export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
-  await prepareBackend()
-  let response: Response
   try {
-    response = await fetch(`${apiBase}${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', ...apiHeaders(), ...init?.headers },
-    })
-  } catch {
-    throw new Error('Нет связи с игрой. Проверь соединение и повтори попытку.')
+    return await withRequestTimeout(async (signal) => {
+      await prepareBackend()
+      const response = await fetch(`${apiBase}${path}`, {
+        ...init,
+        signal,
+        headers: { 'Content-Type': 'application/json', ...apiHeaders(), ...init?.headers },
+      })
+      const decoded = await decodeApiResponse(response)
+      if (decoded.kind === 'invalid-json') {
+        throw new CasinoApiError(
+          `Сервер вернул некорректный ответ (HTTP ${response.status})`,
+          response.status,
+          undefined,
+          'invalid_response',
+        )
+      }
+      if (decoded.kind === 'http-error') {
+        throw new CasinoApiError(decoded.message, decoded.status, undefined, decoded.code)
+      }
+      return decoded.body as T
+    }, REQUEST_TIMEOUT_MS, init?.signal)
+  } catch (caught) {
+    if (caught instanceof CasinoApiError) throw caught
+    if (caught instanceof RequestTimeoutError) {
+      throw new Error('Игра не ответила вовремя. Исход запроса неизвестен; повтори тот же запрос.')
+    }
+    if (init?.signal?.aborted) throw caught
+    throw new Error('Нет связи с игрой. Исход запроса неизвестен; повтори тот же запрос.')
   }
-  const body = await response.json()
-  if (!response.ok) {
-    throw new CasinoApiError(body.detail ?? 'Запрос не прошёл', response.status, undefined, body.code)
-  }
-  return body as T
 }

@@ -53,3 +53,43 @@ export function createPendingMutationStore(storageKey, storageProvider = () => g
 
   return { read, write, isSafe }
 }
+
+export async function sendWithPendingMutation({
+  active,
+  persist,
+  send,
+  clear,
+  onFailure,
+  persistenceError,
+}) {
+  if (!persist(active)) throw persistenceError()
+  try {
+    const response = await send(active)
+    await clear(active)
+    return response
+  } catch (error) {
+    if (onFailure) await onFailure(error, active)
+    throw error
+  }
+}
+
+export async function handlePendingMutationFailure(error, {
+  fetchState,
+  clearPending,
+  isDefinitive,
+  makeConflictError,
+  hasReconciledState,
+}) {
+  if (error?.status === 409) {
+    try {
+      const state = await fetchState()
+      await clearPending()
+      throw makeConflictError(error, state)
+    } catch (reconciliationError) {
+      if (hasReconciledState(reconciliationError)) throw reconciliationError
+      throw error
+    }
+  }
+  if (isDefinitive(error)) await clearPending()
+  throw error
+}

@@ -4,10 +4,9 @@ interface SlotSymbolProps {
   value: string
 }
 
-const labels: Record<string, { label: string; art: 'cherry' | 'banana' | 'bell' | 'diamond' | 'seven' }> = {
+const labels: Record<string, { label: string; art: 'cherry' | 'lemon' | 'bell' | 'diamond' | 'seven' }> = {
   '1f352': { label: 'Вишни', art: 'cherry' },
-  // 🍋 is the stable game symbol; the machine's artwork represents it as a banana.
-  '1f34b': { label: 'Банан', art: 'banana' },
+  '1f34b': { label: 'Лимон', art: 'lemon' },
   '1f514': { label: 'Колокол', art: 'bell' },
   '1f48e': { label: 'Бриллиант', art: 'diamond' },
   '37-fe0f-20e3': { label: 'Семёрка', art: 'seven' },
@@ -30,10 +29,10 @@ export function SlotSymbol({ value }: SlotSymbolProps) {
           <stop offset=".4" stopColor="#d63c35" />
           <stop offset="1" stopColor="#8e1820" />
         </linearGradient>
-        <linearGradient id={`${gradientId}-gold`} x1="0" y1="0" x2=".8" y2="1">
-          <stop stopColor="#fff5ac" />
-          <stop offset=".42" stopColor="#f2c848" />
-          <stop offset="1" stopColor="#bd741e" />
+        <linearGradient id={`${gradientId}-lemon`} x1="0" y1="0" x2=".3" y2="1">
+          <stop stopColor="#fff9b5" />
+          <stop offset=".55" stopColor="#f5d744" />
+          <stop offset="1" stopColor="#dca42b" />
         </linearGradient>
         <linearGradient id={`${gradientId}-bell`} x1=".15" y1="0" x2=".85" y2="1">
           <stop stopColor="#fff1a0" />
@@ -65,11 +64,9 @@ export function SlotSymbol({ value }: SlotSymbolProps) {
         <ellipse cx="46" cy="53" rx="3" ry="6" transform="rotate(28 46 53)" fill="#ffe4ca" stroke="none" opacity=".78" />
       </g>}
 
-      {art === 'banana' && <g filter={`url(#${gradientId}-shadow)`} stroke="#89601a" strokeLinejoin="round">
-        <path d="M12 58C18 25 44 8 72 14c-3 19-15 34-31 42 16-4 29-17 37-32-3 28-24 48-57 53-10-2-14-9-9-19Z" fill={`url(#${gradientId}-gold)`} strokeWidth="2.5" />
-        <path d="M17 57C26 32 44 19 64 18" fill="none" stroke="#fff1a4" strokeWidth="5" strokeLinecap="round" opacity=".8" />
-        <path d="m12 58-8-3 3-8 9 2m62-25 3-9 8 2-2 10" fill="#76502b" stroke="#614221" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M19 68c19-3 35-14 47-29" fill="none" stroke="#c27c1c" strokeWidth="2" opacity=".65" />
+      {art === 'lemon' && <g filter={`url(#${gradientId}-shadow)`}>
+        <path d="M8 45c5-2 8-6 10-12 5-11 16-16 28-16 15 0 25 9 28 20 1 4 5 7 9 8-5 2-8 6-9 11-5 11-15 16-29 16-12 0-22-6-27-16-2-5-5-9-10-11Z" fill={`url(#${gradientId}-lemon)`} stroke="#a67b20" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M23 37c5-9 13-13 24-13" fill="none" stroke="#fffbd0" strokeWidth="4" strokeLinecap="round" opacity=".85" />
       </g>}
 
       {art === 'bell' && <g filter={`url(#${gradientId}-shadow)`} stroke="#80511e" strokeLinejoin="round">

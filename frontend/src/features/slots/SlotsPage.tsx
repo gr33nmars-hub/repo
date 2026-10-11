@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { GameInfo, RoundResult } from '../../types'
 import { BetControl } from '../shared/BetControl'
 import { SlotSymbol } from './SlotSymbol'
-import { verifySlotRound } from './slotFairness.mjs'
+import { FairnessPanel } from '../shared/FairnessPanel'
 import './slots.css'
 
 interface SlotsPageProps {
@@ -10,6 +10,7 @@ interface SlotsPageProps {
   balance: number
   amount: number
   busy: boolean
+  blocked?: boolean
   initialRound?: RoundResult
   serverSeedHash?: string
   onBalanceHold: (balance: number | null) => void
@@ -17,11 +18,6 @@ interface SlotsPageProps {
   onPlay: () => Promise<RoundResult | null>
 }
 
-const fallbackStrips = [
-  ['🍒', '🍋', '🔔', '🍒', '💎', '🍒', '🍋', '7️⃣'],
-  ['🍋', '🍒', '💎', '🍋', '🍒', '🔔', '7️⃣', '🍒'],
-  ['🍒', '🔔', '🍋', '🍒', '7️⃣', '🍋', '🍒', '💎'],
-]
 const stopDurations = [1350, 1650, 1950]
 const minimumSpinTime = 650
 const reelSpeed = 21
@@ -48,7 +44,7 @@ function roundSymbols(round: RoundResult | null): string[] | undefined {
 }
 
 function displayRoundMessage(message: string) {
-  return message.replaceAll('🍋', '🍌').replace('Тройка 7️⃣', 'Тройка 777')
+  return message.replace('Тройка 7️⃣', 'Тройка 777')
 }
 
 function Reel({ strip, position, moving }: { strip: string[]; position: number; moving: boolean }) {
@@ -74,13 +70,14 @@ interface StopMotion {
   result: RoundResult | null
 }
 
-export function SlotsPage({ game, balance, amount, busy, initialRound, serverSeedHash, onBalanceHold, onAmountChange, onPlay }: SlotsPageProps) {
-  const strips = game.reel_strips?.length === 3 ? game.reel_strips : fallbackStrips
-  const [positions, setPositions] = useState(() => initialStops(strips, initialRound))
+export function SlotsPage({ game, balance, amount, busy, blocked = false, initialRound, serverSeedHash, onBalanceHold, onAmountChange, onPlay }: SlotsPageProps) {
+  const strips = game.reel_strips?.length === 3 && game.reel_strips.every((strip) => strip.length > 0)
+    ? game.reel_strips
+    : null
+  const [positions, setPositions] = useState(() => strips ? initialStops(strips, initialRound) : [0, 0, 0])
   const [requesting, setRequesting] = useState(false)
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<RoundResult | null>(initialRound ?? null)
-  const [fairnessStatus, setFairnessStatus] = useState<'checking' | 'verified' | 'failed' | null>(null)
   const positionsRef = useRef(positions)
   const requestLock = useRef(false)
   const frameRef = useRef<number | null>(null)
@@ -133,7 +130,7 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
   }
 
   function settle(nextResult: RoundResult | null) {
-    if (!mountedRef.current) return
+    if (!mountedRef.current || !strips) return
     const symbols = roundSymbols(nextResult)
     const hasMatchingStops = nextResult?.reel_stops?.length === 3
       && nextResult.reel_stops.every((stop, index) => strips[index][stop] === symbols?.[index])
@@ -159,28 +156,14 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
   }
 
   async function playRound() {
-    if (requestLock.current || busy) return
+    if (requestLock.current || busy || blocked || !strips) return
     requestLock.current = true
     setResult(null)
-    setFairnessStatus(null)
     setRequesting(true)
-    const announcedHash = serverSeedHash
-    const checkProof = (round: RoundResult | null) => {
-      if (!round) return
-      if (!announcedHash) {
-        setFairnessStatus('failed')
-        return
-      }
-      setFairnessStatus('checking')
-      void verifySlotRound(round, game, announcedHash)
-        .then((valid) => { if (mountedRef.current) setFairnessStatus(valid ? 'verified' : 'failed') })
-        .catch(() => { if (mountedRef.current) setFairnessStatus('failed') })
-    }
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       try {
         const nextResult = await onPlay()
         if (mountedRef.current && nextResult) {
-          checkProof(nextResult)
           const stops = nextResult.reel_stops ?? initialStops(strips, nextResult)
           positionsRef.current = stops
           setPositions(stops)
@@ -201,7 +184,6 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
     try {
       const nextResult = await onPlay()
       if (!mountedRef.current) return
-      checkProof(nextResult)
       const remaining = Math.max(0, minimumSpinTime - (performance.now() - spinStartedRef.current))
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null
@@ -213,7 +195,14 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
   }
 
   const paytable = game.paytable ?? []
-  const status = result
+  if (!strips) return <section className="game-unavailable" role="status">
+    <h1>Конфигурация барабанов недоступна</h1>
+    <p>Сервер не передал правила этого стола. Обнови состояние перед игрой.</p>
+  </section>
+
+  const status = blocked
+    ? 'Слоты недоступны, пока идёт раздача блэкджека'
+    : result
     ? result.profit > 0 ? 'Выплата' : result.profit === 0 ? 'Ставка возвращена' : 'Нет выигрыша'
     : requesting ? 'Барабаны вращаются' : spinning ? 'Барабаны останавливаются' : 'Можно крутить'
 
@@ -245,7 +234,7 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
 
         <aside className="slots-console" aria-label="Управление автоматом">
           <div className="slots-console-balance"><span>На счету</span><strong>{balance.toLocaleString('ru-RU')} <small>фишек</small></strong></div>
-          <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || requesting || spinning} actionLabel="Крутить барабаны" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
+          <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || requesting || spinning} disabled={blocked} actionLabel="Крутить барабаны" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
           <div className="slots-console-divider" />
           <div className={`slots-last-round${result?.profit && result.profit > 0 ? ' is-positive' : ''}`}>
             <span className="slots-console-caption">ПОСЛЕДНИЙ РАУНД</span>
@@ -254,14 +243,8 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
               <div><span>Чистый итог</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
             </> : <p>Здесь появится итог после первого вращения.</p>}
           </div>
-          <p className="slots-console-hint">Три одинаковых символа дают выплату. Любая пара возвращает ставку.</p>
-          {serverSeedHash && <details className="slots-fairness">
-            <summary>Проверяемый исход {fairnessStatus === 'verified' ? '✓' : fairnessStatus === 'failed' ? '!' : ''}</summary>
-            <p>Хеш следующего раунда</p><code>{serverSeedHash}</code>
-            {result?.fairness && <><p>Раскрытый seed прошлого раунда</p><code>{result.fairness.server_seed}</code>
-              <p>Объявленный хеш / client seed</p><code>{result.fairness.server_seed_hash}<br />{result.fairness.client_seed}</code>
-              <p>{fairnessStatus === 'verified' ? 'Хеш, позиции и выплата совпали.' : fairnessStatus === 'failed' ? 'Проверка не прошла.' : fairnessStatus === 'checking' ? 'Проверяем исход…' : 'Данные раунда сохранены в истории.'}</p></>}
-          </details>}
+          <p className="slots-console-hint">Выплата определяется таблицей сочетаний.</p>
+          <FairnessPanel commitment={serverSeedHash} round={result ?? undefined} game={game} />
         </aside>
       </div>
 
@@ -276,14 +259,13 @@ export function SlotsPage({ game, balance, amount, busy, initialRound, serverSee
               <strong>×{multiplier}</strong>
             </div>
           ))}
-          {game.pair_multiplier !== undefined && <div className="slots-payout-item slots-payout-item--pair">
-            <div className="slots-payout-symbols" aria-hidden="true"><SlotSymbol value="🍒" /><SlotSymbol value="🍒" /><SlotSymbol value="🍌" /></div>
+          {typeof game.pair_multiplier === 'number' && <div className="slots-payout-item slots-payout-item--pair">
+            <div className="slots-payout-symbols" aria-hidden="true"><SlotSymbol value="🍒" /><SlotSymbol value="🍒" /><SlotSymbol value="🍋" /></div>
             <span>Любая пара</span>
             <small>Третий символ отличается</small>
             <strong>×{game.pair_multiplier}</strong>
           </div>}
         </div> : <p className="slots-paytable-note">Таблица выплат недоступна.</p>}
-        {paytable.length > 0 && <div className="slots-paytable-footer"><p>Множитель показывает полную выплату вместе со ставкой.</p>{game.theoretical_return_percent !== undefined && <p>Теоретический возврат: {game.theoretical_return_percent.toLocaleString('ru-RU')}% на длинной дистанции.</p>}</div>}
       </section>
     </div>
   )

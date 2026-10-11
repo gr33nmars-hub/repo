@@ -35,7 +35,7 @@ The product name is NOIR Casino Club. The requested product world is a stylish n
 
 ## Evidence on Hand
 
-Balance, history, and player statistics are supplied by the real API. No real-money data, live-player count, external endorsements, or verified probability/RTP claims are provided; the interface must not invent them.
+Balance, history, and player statistics come from the local API. The slots table computes a theoretical return from its configured reel strips and paytable; this is not an observed result or an independent fairness audit. The interface has no real-money data, live-player count, or external endorsements to display.
 
 ## Product Principles
 

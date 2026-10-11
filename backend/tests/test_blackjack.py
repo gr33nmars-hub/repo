@@ -17,6 +17,7 @@ from casino.domain.core import GameRules
 from casino.domain.games import RouletteRules, SlotRules
 from casino.domain.ledger import LedgerEntryType, LedgerMovement
 from casino.domain.models import Card, GameResult, Player
+from casino.domain.slot_fairness import seed_hash
 from casino.persistence.sqlite import PlayerRepository
 
 
@@ -28,6 +29,17 @@ def rig(game: Blackjack, draws: list[tuple[str, str]]) -> None:
         shoe.remove(card)
         selected.append(card)
     game.deck = shoe + list(reversed(selected))
+
+
+def rig_legacy_service(service: CasinoService, draws: list[tuple[str, str]]) -> None:
+    """Use a rigged legacy shoe for application tests unrelated to fairness."""
+    rig(service.blackjack, draws)
+    fair_start = service.blackjack.start
+
+    def start_from_rig(bet: int, **_: object):
+        return fair_start(bet)
+
+    service.blackjack.start = start_from_rig  # type: ignore[method-assign]
 
 
 class BlackjackRulesTests(unittest.TestCase):
@@ -364,6 +376,38 @@ class BlackjackRulesTests(unittest.TestCase):
         restored.restore_state(saved)
         self.assertEqual(restored.dump_state(), saved)
 
+    def test_fair_snapshot_rejects_tampered_draw_order_and_unknown_version(self) -> None:
+        server_seed = "00" * 32
+        game = Blackjack()
+        game.start(
+            20,
+            fairness={
+                "server_seed": server_seed,
+                "server_seed_hash": seed_hash(server_seed),
+                "client_seed": "restore-test",
+                "nonce": 0,
+            },
+            server_seed=server_seed,
+            client_seed="restore-test",
+        )
+        saved = game.dump_state()
+        self.assertIsNotNone(saved)
+
+        restored = Blackjack()
+        restored.restore_state(saved)
+        self.assertEqual(restored.dump_state(), saved)
+
+        tampered = dict(saved)
+        tampered["draw_order"] = list(saved["draw_order"])
+        tampered["draw_order"][0] = "A♠" if tampered["draw_order"][0] != "A♠" else "K♠"
+        with self.assertRaises(ValueError):
+            Blackjack().restore_state(tampered)
+
+        unsupported = dict(saved)
+        unsupported["version"] = 6
+        with self.assertRaises(ValueError):
+            Blackjack().restore_state(unsupported)
+
     def test_mixed_split_result_even_when_net_is_push(self) -> None:
         game = Blackjack()
         rig(game, [("8", "♠"), ("9", "♣"), ("8", "♥"), ("8", "♣"), ("10", "♦"), ("2", "♥")])
@@ -378,7 +422,7 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_restore_active_round_and_idempotent_session_accounting(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             session = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
-            rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
+            rig_legacy_service(session, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             started = session.start_blackjack(20, "start")
             self.assertEqual(started["player"]["balance"], 2480)
             self.assertEqual(session.start_blackjack(20, "start"), started)
@@ -392,7 +436,7 @@ class BlackjackRulesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "casino.sqlite3"
             session = CasinoService(PlayerRepository(path))
-            rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
+            rig_legacy_service(session, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             session.start_blackjack(20, "start")
 
             db = sqlite3.connect(path)
@@ -416,7 +460,10 @@ class BlackjackRulesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "casino.sqlite3"
             session = CasinoService(PlayerRepository(path))
-            rig(session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣"), ("2", "♦")])
+            rig_legacy_service(
+                session,
+                [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣"), ("2", "♦")],
+            )
             session.start_blackjack(20, "start")
             session.blackjack_action("split", "split")
 
@@ -443,7 +490,10 @@ class BlackjackRulesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repository = PlayerRepository(Path(directory) / "casino.sqlite3")
             session = CasinoService(repository)
-            rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣"), ("2", "♦")])
+            rig_legacy_service(
+                session,
+                [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣"), ("2", "♦")],
+            )
             session.start_blackjack(20, "start")
             before_state = session.blackjack.dump_state()
             before_balance = session.player.balance
@@ -687,7 +737,7 @@ class BlackjackRulesTests(unittest.TestCase):
                 ).fetchone()
             self.assertEqual(adjustment, ("profile_adjustment", -2490, "test fixture balance"))
             session = CasinoService(repository)
-            rig(session.blackjack, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
+            rig_legacy_service(session, [("10", "♠"), ("9", "♣"), ("6", "♥"), ("7", "♣")])
             session.start_blackjack(10, "start")
 
             with self.assertRaisesRegex(ValueError, "после завершения"):
@@ -707,8 +757,8 @@ class BlackjackRulesTests(unittest.TestCase):
     def test_session_charges_each_resplit_and_records_the_round_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             session = CasinoService(PlayerRepository(Path(directory) / "test.sqlite3"))
-            rig(
-                session.blackjack,
+            rig_legacy_service(
+                session,
                 [
                     ("8", "♠"),
                     ("6", "♣"),
@@ -748,7 +798,7 @@ class BlackjackRulesTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             start_session = CasinoService(PlayerRepository(Path(directory) / "start.sqlite3"))
-            rig(start_session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
+            rig_legacy_service(start_session, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
             start_shoe = start_session.blackjack.deck.copy()
             start_session.blackjack._draw = fail_draw
             with self.assertRaisesRegex(RuntimeError, "simulated shoe failure"):
@@ -758,7 +808,7 @@ class BlackjackRulesTests(unittest.TestCase):
             self.assertEqual(start_session.blackjack.deck, start_shoe)
 
             action_session = CasinoService(PlayerRepository(Path(directory) / "action.sqlite3"))
-            rig(action_session.blackjack, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
+            rig_legacy_service(action_session, [("8", "♠"), ("6", "♣"), ("8", "♥"), ("7", "♣")])
             started = action_session.start_blackjack(20, "start")
             before_action = action_session.blackjack.dump_state()
             action_session.blackjack._draw = fail_draw
@@ -810,7 +860,6 @@ class BlackjackRulesTests(unittest.TestCase):
                 db.commit()
             finally:
                 db.close()
-
             repository = PlayerRepository(path)
             with self.assertRaisesRegex(IdempotencyConflict, "старой версии"):
                 repository.get_request_response("legacy-key", signature="wallet.refill")
@@ -824,6 +873,32 @@ class BlackjackRulesTests(unittest.TestCase):
                 self.assertIsNone(signature)
             finally:
                 db.close()
+
+    def test_old_blackjack_start_signature_replays_for_legacy_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy-signature.sqlite3"
+            repository = PlayerRepository(path)
+            service = CasinoService(repository)
+            response = {"player": {"balance": 1234}}
+            legacy_signature = service._request_signature("blackjack.start", bet=20)
+            with repository.write_transaction() as unit_of_work:
+                unit_of_work.save(
+                    service.player,
+                    None,
+                    request_key="old-blackjack-start",
+                    signature=legacy_signature,
+                    ledger_entries=[],
+                    response=response,
+                )
+
+            self.assertEqual(
+                service.start_blackjack(
+                    20, "old-blackjack-start", legacy_signature_compatible=True
+                ),
+                response,
+            )
+            with self.assertRaises(IdempotencyConflict):
+                service.start_blackjack(20, "old-blackjack-start", "new-seed")
 
 
 if __name__ == "__main__":

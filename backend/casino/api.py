@@ -68,7 +68,6 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
             "http://127.0.0.1:5173",
             "http://tauri.localhost",
         ],
-        allow_origin_regex=r"^https?://(?:localhost|127\.0\.0\.1):\d+$",
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "X-Noir-Api-Token"],
@@ -152,7 +151,16 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         response_model_exclude_unset=True,
     )
     def start_blackjack(body: PlayRequest, request: Request) -> dict:
-        return service_for(request).start_blackjack(body.bet, body.idempotency_key)
+        return service_for(request).start_blackjack(
+            body.bet,
+            body.idempotency_key,
+            body.client_seed,
+            body.expected_server_seed_hash,
+            legacy_signature_compatible=not {
+                "client_seed",
+                "expected_server_seed_hash",
+            }.intersection(body.model_fields_set),
+        )
 
     @application.post(
         "/api/blackjack/action",

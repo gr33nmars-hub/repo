@@ -1,5 +1,6 @@
 import type { CasinoState } from '../../types'
 import { Icon } from '../../components/shell/Icon'
+import { FairnessPanel } from '../shared/FairnessPanel'
 import './history.css'
 
 interface HistoryPageProps {
@@ -58,6 +59,8 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
                 </small>}
                 <span>{round.message}</span>
                 <time dateTime={round.played_at}>{formatDate(round.played_at)}</time>
+                <FairnessPanel commitment={round.fairness?.server_seed_hash} round={round}
+                  game={state?.games.find((game) => game.id === round.game_id)} commitmentLabel="Хеш раунда" />
               </div>
               <dl className="history-round-amounts">
                 <div><dt>Ставка</dt><dd>{round.bet.toLocaleString('ru-RU')}</dd></div>

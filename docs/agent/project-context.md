@@ -41,6 +41,7 @@ flowchart LR
 - `backend/casino/persistence/sqlite.py` — `PlayerRepository`, connection, SQLite транзакции, profile/ledger/idempotency operations и legacy import.
 - `backend/casino/persistence/migrations.py` — версии схемы SQLite (сейчас schema version 4); `codecs.py` — сериализация и совместимость сохранённых snapshots.
 - `backend/casino/recovery.py` и `process_lock.py` — offline backup/verify/restore и блокировка процесса.
+- `backend/casino/session_report.py` — сохраняет отчёт локальной desktop-сессии при штатном shutdown sidecar.
 - Root модули вроде `casino.session`, `casino.storage`, `casino.blackjack`, `casino.games`, `casino.models` и другие оставлены как compatibility facades. Перед удалением или переносом символа проверьте imports и `test_compatibility_facades.py`.
 
 ### Frontend и desktop

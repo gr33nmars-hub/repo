@@ -246,6 +246,12 @@ class RoundVerifierTests(unittest.TestCase):
             "A♠" if tampered["outcome"]["draw_order"][0] != "A♠" else "K♠"
         )
         self.assertEqual(verification_status(tampered), "invalid")
+        reassigned = {**recorded, "outcome": {**recorded["outcome"]}}
+        reassigned["outcome"]["draw_events"] = [
+            {**event, "target": "dealer" if event["target"] != "dealer" else "hand:0"}
+            for event in recorded["outcome"]["draw_events"]
+        ]
+        self.assertEqual(verification_status(reassigned), "invalid")
 
     def test_corrupt_blackjack_hand_is_invalid_instead_of_raising(self) -> None:
         game = self._blackjack_with_draws([("A", "♠"), ("9", "♣"), ("K", "♠"), ("7", "♣")])

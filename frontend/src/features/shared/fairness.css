@@ -1,5 +1,0 @@
-.fairness-panel { margin-top: 14px; padding-top: 12px; border-top: 1px solid #434c3e; color: #aeb8a8; font-size: 11px; }
-.fairness-panel summary { cursor: pointer; color: #d6c28b; font: 600 10px var(--mono); letter-spacing: .08em; }
-.fairness-panel p { margin: 12px 0 4px; line-height: 1.5; }
-.fairness-panel code { display: block; overflow-wrap: anywhere; color: #d9d9c6; font: 10px/1.45 var(--mono); }
-.fairness-panel summary:focus-visible { outline: 2px solid var(--color-brass-strong); outline-offset: 4px; }

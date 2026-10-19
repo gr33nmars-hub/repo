@@ -71,10 +71,25 @@ export async function verifyFairRound(round, game, commitment) {
       ;[shoe[index], shoe[other]] = [shoe[other], shoe[index]]
     }
     const draws = round.outcome?.draw_order
-    const recorded = [...(round.outcome?.dealer_cards ?? []), ...(round.outcome?.hands ?? []).flatMap((hand) => hand.cards ?? [])]
+    const events = round.outcome?.draw_events
+    const hands = round.outcome?.hands ?? []
+    const dealer = []
+    const allocated = hands.map(() => [])
     if (!(Array.isArray(draws) && draws.length > 0
       && draws.every((card, index) => card === shoe[index])
-      && canonical([...draws].sort()) === canonical(recorded.sort()))) return false
+      && Array.isArray(events) && events.length === draws.length)) return false
+    for (const [index, event] of events.entries()) {
+      if (!event || typeof event !== 'object' || Array.isArray(event)
+        || Object.keys(event).length !== 2 || event.card !== draws[index] || typeof event.target !== 'string') return false
+      if (event.target === 'dealer') dealer.push(event.card)
+      else if (/^hand:\d+$/.test(event.target)) {
+        const handIndex = Number(event.target.slice(5))
+        if (!Number.isSafeInteger(handIndex) || handIndex < 0 || handIndex >= allocated.length) return false
+        allocated[handIndex].push(event.card)
+      } else return false
+    }
+    if (canonical(dealer) !== canonical(round.outcome?.dealer_cards)
+      || canonical(allocated) !== canonical(hands.map((hand) => hand.cards ?? []))) return false
     return true
   }
   return false

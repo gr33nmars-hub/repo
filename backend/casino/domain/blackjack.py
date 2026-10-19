@@ -86,6 +86,7 @@ class BlackjackRound:
     round_id: str | None = None
     fairness: dict | None = None
     draw_order: list[str] | None = None
+    draw_events: list[dict[str, str]] | None = None
 
     @property
     def bet(self) -> int:
@@ -117,6 +118,8 @@ class Blackjack:
         self.deck: list[Card] = []
         self.discarded_cards: list[Card] = []
         self._draw_trace: list[str] | None = None
+        self._draw_event_trace: list[dict[str, str]] | None = None
+        self._draw_target: str | None = None
 
     @property
     def minimum_bet(self) -> int:
@@ -157,7 +160,17 @@ class Blackjack:
         trace = self._draw_trace
         if trace is not None:
             trace.append(card.label)
+        events = self._draw_event_trace
+        if events is not None and self._draw_target is not None:
+            events.append({"card": card.label, "target": self._draw_target})
         return card
+
+    def _draw_for(self, target: str) -> Card:
+        self._draw_target = target
+        try:
+            return self._draw()
+        finally:
+            self._draw_target = None
 
     def _new_shoe(
         self, server_seed: str | None = None, client_seed: str = "", nonce: int = 0
@@ -209,11 +222,13 @@ class Blackjack:
         elif self.hand is not None:
             self._archive_completed_round()
         draw_order: list[str] = []
+        draw_events: list[dict[str, str]] = []
         self._draw_trace = draw_order
-        player = [self._draw()]
-        dealer = [self._draw()]
-        player.append(self._draw())
-        dealer.append(self._draw())
+        self._draw_event_trace = draw_events
+        player = [self._draw_for("hand:0")]
+        dealer = [self._draw_for("dealer")]
+        player.append(self._draw_for("hand:0"))
+        dealer.append(self._draw_for("dealer"))
         self.hand = BlackjackRound(
             [PlayerHand(player, bet)],
             dealer,
@@ -221,6 +236,7 @@ class Blackjack:
             round_id=uuid4().hex,
             fairness=fairness,
             draw_order=draw_order,
+            draw_events=draw_events,
         )
         if dealer[0].rank == "A":
             self.hand.status = "insurance"
@@ -321,7 +337,7 @@ class Blackjack:
             round_.active_hand_index = next_index
             next_hand = round_.hands[next_index]
             if len(next_hand.cards) == 1:
-                next_hand.cards.append(self._draw())
+                next_hand.cards.append(self._draw_for(f"hand:{next_index}"))
             if self.score(next_hand.cards) == 21:
                 next_hand.status = "standing"
                 next_hand.message = "21 после разделения · выплата как за обычную руку"
@@ -333,7 +349,7 @@ class Blackjack:
 
     def hit(self) -> BlackjackRound:
         round_, current = self._current("hit")
-        current.cards.append(self._draw())
+        current.cards.append(self._draw_for(f"hand:{round_.active_hand_index}"))
         score = self.score(current.cards)
         if score > 21:
             current.status, current.message = "bust", "Перебор"
@@ -354,7 +370,7 @@ class Blackjack:
         round_, current = self._current("double")
         current.bet *= 2
         current.doubled = True
-        current.cards.append(self._draw())
+        current.cards.append(self._draw_for(f"hand:{round_.active_hand_index}"))
         current.status = "bust" if self.score(current.cards) > 21 else "standing"
         current.message = (
             "Перебор после удвоения" if current.status == "bust" else "Удвоение · одна карта"
@@ -371,12 +387,21 @@ class Blackjack:
         current.split_aces = ace
         new = PlayerHand([second], current.bet, from_split=True, split_aces=ace)
         round_.hands.insert(index + 1, new)
-        current.cards.append(self._draw())
+        if self._draw_event_trace is not None:
+            for event in self._draw_event_trace:
+                target = event.get("target", "")
+                if target.startswith("hand:") and target[5:].isdigit() and int(target[5:]) > index:
+                    event["target"] = f"hand:{int(target[5:]) + 1}"
+            for event in reversed(self._draw_event_trace):
+                if event.get("target") == f"hand:{index}" and event.get("card") == second.label:
+                    event["target"] = f"hand:{index + 1}"
+                    break
+        current.cards.append(self._draw_for(f"hand:{index}"))
         if self.score(current.cards) == 21:
             current.status = "standing"
             current.message = "21 после разделения · выплата как за обычную руку"
         if ace:
-            new.cards.append(self._draw())
+            new.cards.append(self._draw_for(f"hand:{index + 1}"))
             current.status = new.status = "standing"
             current.message = new.message = "После разделения тузов выдана одна карта"
             self._advance()
@@ -444,7 +469,7 @@ class Blackjack:
                 and self.score(round_.dealer_cards) == 17
                 and self._soft(round_.dealer_cards)
             ):
-                round_.dealer_cards.append(self._draw())
+                round_.dealer_cards.append(self._draw_for("dealer"))
         dealer_score = self.score(round_.dealer_cards)
         for hand in contenders:
             score = self.score(hand.cards)
@@ -503,7 +528,7 @@ class Blackjack:
         if round_.insurance_bet:
             details += f"  ·  Страховка: {round_.insurance_bet} → {round_.insurance_payout}"
         snapshot = self._rules_snapshot()
-        outcome = {
+        outcome: dict[str, object] = {
             "round_id": round_.round_id,
             "initial_bet": round_.initial_bet,
             "dealer_cards": [card.label for card in round_.dealer_cards],
@@ -523,6 +548,7 @@ class Blackjack:
         }
         if round_.fairness is not None:
             outcome["draw_order"] = round_.draw_order or []
+            outcome["draw_events"] = list(round_.draw_events or [])
         return GameResult(
             self.game_id,
             self.name,
@@ -535,6 +561,7 @@ class Blackjack:
             rules_snapshot=snapshot,
             outcome=outcome,
             fairness=round_.fairness,
+            round_id=round_.round_id,
         )
 
     def _rules_snapshot(self) -> dict[str, object]:
@@ -637,12 +664,15 @@ class Blackjack:
         if round_.fairness is not None:
             state["fairness"] = round_.fairness
             state["draw_order"] = list(round_.draw_order or [])
+            state["draw_events"] = [event.copy() for event in round_.draw_events or []]
         return state
 
     def restore_state(self, state: dict | None) -> None:
         if state is None:
             self.hand, self.deck, self.discarded_cards = None, [], []
             self._draw_trace = None
+            self._draw_event_trace = None
+            self._draw_target = None
             return
         if not isinstance(state, dict):
             raise ValueError("Некорректное состояние раздачи блэкджека")
@@ -654,6 +684,11 @@ class Blackjack:
             self.discarded_cards = discarded
             self._draw_trace = (
                 self.hand.draw_order
+                if self.hand.status in {"playing", "insurance"} and self.hand.fairness is not None
+                else None
+            )
+            self._draw_event_trace = (
+                self.hand.draw_events
                 if self.hand.status in {"playing", "insurance"} and self.hand.fairness is not None
                 else None
             )
@@ -727,7 +762,7 @@ class Blackjack:
             else []
         )
         dealer = [self._parse_card(c) for c in state["dealer_cards"]]
-        hands = []
+        hands: list[PlayerHand] = []
         for saved_hand in state["hands"]:
             if (
                 not isinstance(saved_hand, dict)
@@ -768,10 +803,12 @@ class Blackjack:
             state.get("round_id"),
             state.get("fairness") if type(state.get("fairness")) is dict else None,
             state.get("draw_order") if type(state.get("draw_order")) is list else [],
+            state.get("draw_events") if type(state.get("draw_events")) is list else None,
         )
         if state.get("version") == 5 and (
             ("fairness" in state and type(state["fairness"]) is not dict)
             or ("draw_order" in state and type(state["draw_order"]) is not list)
+            or ("draw_events" in state and type(state["draw_events"]) is not list)
             or (("fairness" in state) != ("draw_order" in state))
         ):
             raise ValueError("Некорректное состояние раздачи блэкджека")
@@ -933,9 +970,42 @@ class Blackjack:
         fair_shuffle(shoe, server_seed, client_seed, nonce)
         if len(draw_order) > len(shoe) or draw_order != shoe[: len(draw_order)]:
             return False
+        draw_events = round_.draw_events
+        if draw_events is not None:
+            return self._draw_events_match(round_, draw_order, draw_events)
         dealt = [card.label for card in round_.dealer_cards]
         dealt.extend(card.label for hand in round_.hands for card in hand.cards)
         return Counter(dealt) == Counter(draw_order)
+
+    @staticmethod
+    def _draw_events_match(
+        round_: BlackjackRound, draw_order: list[str], events: list[dict[str, str]]
+    ) -> bool:
+        if len(events) != len(draw_order):
+            return False
+        dealer: list[str] = []
+        hands: list[list[str]] = [[] for _ in round_.hands]
+        for card, event in zip(draw_order, events, strict=True):
+            if (
+                type(event) is not dict
+                or set(event) != {"card", "target"}
+                or event.get("card") != card
+                or type(event.get("target")) is not str
+            ):
+                return False
+            target = event["target"]
+            if target == "dealer":
+                dealer.append(card)
+                continue
+            if not target.startswith("hand:") or not target.removeprefix("hand:").isdigit():
+                return False
+            index = int(target.removeprefix("hand:"))
+            if not 0 <= index < len(hands):
+                return False
+            hands[index].append(card)
+        return dealer == [card.label for card in round_.dealer_cards] and hands == [
+            [card.label for card in hand.cards] for hand in round_.hands
+        ]
 
     def _restore_legacy_state(self, state: dict) -> None:
         # Preserve an in-progress single-deck save from the previous version.

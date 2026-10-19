@@ -11,6 +11,7 @@ from casino.domain.core import CasinoGame
 from casino.domain.errors import InvalidCasinoCommand
 from casino.domain.games import Roulette, SlotMachine
 from casino.domain.models import GameResult
+from casino.domain.oop import PairMap
 
 
 class CasinoService:
@@ -29,10 +30,9 @@ class CasinoService:
             self._validate_active_blackjack_ledger(unit_of_work)
             self._revision = unit_of_work.revision()
             self._server_seed = unit_of_work.load_server_seed()
-        self.games: dict[str, CasinoGame] = {
-            "slots": SlotMachine(),
-            "roulette": Roulette(),
-        }
+        self.games: PairMap[str, CasinoGame] = PairMap(
+            (("slots", SlotMachine()), ("roulette", Roulette()))
+        )
 
     def _validate_active_blackjack_ledger(self, unit_of_work: CasinoReadUnitOfWork) -> None:
         hand = self.blackjack.hand

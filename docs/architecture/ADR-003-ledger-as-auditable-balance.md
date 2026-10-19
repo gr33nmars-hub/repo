@@ -17,7 +17,7 @@ Accepted
 
 ## Решение
 
-Сохранять баланс профиля и append-only movements в одной транзакции. Каждый изменяющий запрос сохраняет signature, ответ и ledger entries с одним idempotency key; при загрузке проверяются цепочка `balance_after` и итоговый баланс.
+Сохранять баланс профиля и append-only movements в одной транзакции. Каждый изменяющий запрос сохраняет signature, ответ и ledger entries с одним idempotency key; новые завершённые игровые rounds получают immutable `round_id`, связывающий историю с ledger entries. При загрузке проверяются цепочка `balance_after`, итоговый баланс и эта связь для новых one-shot rounds.
 
 ## Последствия
 

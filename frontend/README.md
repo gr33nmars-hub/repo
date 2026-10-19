@@ -16,11 +16,12 @@ On Windows, `scripts/tauri.mjs` selects the rustup `stable-x86_64-pc-windows-msv
 
 - `src/App.tsx` composes navigation and feature pages.
 - `src/features/` contains blackjack, roulette, slots, and history UI.
-- `src/features/shared/FairnessPanel.tsx` displays commitments and reveal proofs in each game and in saved history; `fairness.mjs` independently replays the browser-verifiable parts.
 - `src/hooks/useCasino.ts` owns UI state and operation feedback.
 - `src/lib/casino.api.ts` declares endpoint operations; `httpClient.ts` handles HTTP; `casino.commands.ts` persists pending mutations and retries.
 - `src/platform/desktopBackend.ts` starts the Tauri sidecar, checks its token/instance nonce, and stops it when the window closes.
 - `src-tauri/` configures the native window, permissions, sidecar, and installer bundle.
+
+When the desktop sidecar accepts graceful shutdown, it also records the local session in `~/.noir-casino/session-report.txt` (override with `NOIR_CASINO_SESSION_REPORT_PATH`).
 
 HTTP requests have a 15-second timeout. A timeout or connection failure leaves a mutation's original route, payload, and idempotency key pending, because the server may have committed it before the response was lost. Retry that exact request; a 409 refreshes state and clears the conflict instead.
 

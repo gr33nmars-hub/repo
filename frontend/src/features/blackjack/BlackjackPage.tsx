@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { BlackjackAction, BlackjackPlayerHand, CasinoState } from '../../types'
 import { PlayingCard } from './PlayingCard'
-import { FairnessPanel } from '../shared/FairnessPanel'
 import './blackjack.css'
 
 interface Props {
@@ -13,7 +12,6 @@ interface Props {
   onAmountChange: (value: string) => void
   onStart: () => void
   onAction: (action: BlackjackAction) => void
-  serverSeedHash?: string
 }
 
 const fmt = (value: number) => value.toLocaleString('ru-RU')
@@ -30,7 +28,7 @@ const handStatus: Record<string, string> = {
 }
 const ratioOr = (value: unknown, fallback: string) => typeof value === 'string' && /^\d+:\d+$/.test(value) ? value : fallback
 
-export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountChange, onStart, onAction, serverSeedHash }: Props) {
+export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountChange, onStart, onAction }: Props) {
   const actionLock = useRef(false)
   useEffect(() => { if (!busy) actionLock.current = false }, [busy])
   const round = state.blackjack
@@ -146,8 +144,5 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
         </form>}
       </aside>
     </div>
-    <FairnessPanel commitment={serverSeedHash} round={latest} game={state.games.find((item) => item.id === 'blackjack')}
-      commitmentLabel={inRound ? 'Хеш текущего раунда' : 'Хеш следующего раунда'} />
-
   </div>
 }

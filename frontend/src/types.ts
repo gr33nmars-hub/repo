@@ -87,6 +87,7 @@ export interface RoundResult {
   outcome?: SlotOutcome | RouletteOutcome | BlackjackOutcome | null
   verification_status?: 'verified' | 'invalid' | 'legacy-unverified' | null
   played_at: string
+  round_id?: string | null
 }
 
 export interface BlackjackState {

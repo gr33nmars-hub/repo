@@ -9,7 +9,7 @@
   "roulette_play": {
     "status": 200,
     "top_level": ["result", "state"],
-    "result": ["bet", "details", "fairness", "game_id", "game_name", "message", "outcome", "payout", "played_at", "profit", "rule_version", "rules_fingerprint", "rules_snapshot"]
+    "result": ["bet", "details", "fairness", "game_id", "game_name", "message", "outcome", "payout", "played_at", "profit", "round_id", "rule_version", "rules_fingerprint", "rules_snapshot"]
   },
   "unauthorized": {"status": 401, "fields": ["code", "detail"], "code": "unauthorized"},
   "validation_error": {"status": 422, "fields": ["code", "detail"], "code": "invalid_request"},

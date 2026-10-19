@@ -61,6 +61,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
     application.state.api_instance_nonce = os.environ.get("NOIR_CASINO_API_INSTANCE_NONCE")
     application.state.casino_service = casino_service
     application.state.request_shutdown = None
+    application.state.record_session = None
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -121,6 +122,9 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
                 status_code=404,
                 content={"code": "not_found", "detail": "Not found"},
             )
+        recorder = request.app.state.record_session
+        if recorder is not None:
+            recorder(service_for(request).player.name)
         callback()
         return {"status": "shutting_down"}
 

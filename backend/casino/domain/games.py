@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .core import CasinoGame, GameRules, RandomSource
 from .errors import InvalidCasinoCommand
 from .models import GameResult
+from .oop import PairMap
 from .rule_metadata import fingerprint_rules
 
 
@@ -101,7 +102,7 @@ class SlotMachine(CasinoGame):
     ):
         super().__init__(rng, rules)
         self.slot_rules = slot_rules or SlotRules()
-        self._payouts = dict(self.slot_rules.triples)
+        self._payouts = PairMap(self.slot_rules.triples)
 
     def play(self, bet: int, choice: str = "") -> GameResult:
         stops = [self._rng.choice(range(len(reel))) for reel in self.slot_rules.reels]
@@ -117,7 +118,7 @@ class SlotMachine(CasinoGame):
         details = "  ·  ".join(result)
         if result[0] == result[1] == result[2]:
             multiplier = self._payouts[result[0]]
-            display_symbol = {"🍋": "🍌", "7️⃣": "777"}.get(result[0], result[0])
+            display_symbol = PairMap((("🍋", "🍌"), ("7️⃣", "777"))).get(result[0], result[0])
             payout, message = bet * multiplier, f"Тройка {display_symbol} · выплата ×{multiplier}"
         elif len(set(result)) == 2:
             payout, message = (

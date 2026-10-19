@@ -352,11 +352,55 @@ class PlayerRepository:
         if db is None:
             with self._connection() as connection:
                 return self.load(connection)
-        row = db.execute("SELECT name,balance,rounds_json FROM profile WHERE id=1").fetchone()
+        row = db.execute(
+            "SELECT name,balance,rounds_json,blackjack_json FROM profile WHERE id=1"
+        ).fetchone()
         if row is None:
             raise RuntimeError("Casino profile is missing")
         rounds = CasinoSaveCodec.decode_history(row["rounds_json"])
+        active_blackjack = CasinoSaveCodec.decode_blackjack(row["blackjack_json"])
+        self._validate_history_round_links(db, rounds, active_blackjack)
         return Player.from_dict({"name": row["name"], "balance": row["balance"], "rounds": rounds})
+
+    @staticmethod
+    def _validate_history_round_links(
+        db: sqlite3.Connection, rounds: list[dict], active_blackjack: dict | None
+    ) -> None:
+        """New rounds must remain traceable to their immutable ledger movements."""
+        round_ids = [
+            round_.get("round_id") or (round_.get("outcome") or {}).get("round_id")
+            for round_ in rounds
+            if round_.get("round_id") is not None
+            or isinstance(round_.get("outcome"), dict)
+            and (round_["outcome"].get("round_id") is not None)
+        ]
+        if any(type(round_id) is not str or not round_id for round_id in round_ids) or len(
+            set(round_ids)
+        ) != len(round_ids):
+            raise RuntimeError("Saved round identifiers are invalid")
+        for round_ in rounds:
+            round_id = round_.get("round_id") or (round_.get("outcome") or {}).get("round_id")
+            if round_id is None:
+                continue
+            entries = db.execute(
+                "SELECT entry_type,delta FROM ledger WHERE round_id=? ORDER BY id", (round_id,)
+            ).fetchall()
+            if round_.get("game_id") in {"slots", "roulette"}:
+                expected = [("bet_stake", -round_["bet"]), ("game_payout", round_["payout"])]
+                if [(row["entry_type"], row["delta"]) for row in entries] != expected:
+                    raise RuntimeError("Round history does not match the durable ledger")
+            elif not entries:
+                raise RuntimeError("Round history does not match the durable ledger")
+        active_round_id = active_blackjack.get("round_id") if active_blackjack is not None else None
+        known_round_ids = set(round_ids)
+        if active_round_id is not None:
+            known_round_ids.add(active_round_id)
+        linked_ids = {
+            row["round_id"]
+            for row in db.execute("SELECT DISTINCT round_id FROM ledger WHERE round_id IS NOT NULL")
+        }
+        if not linked_ids <= known_round_ids:
+            raise RuntimeError("Round history does not match the durable ledger")
 
     def load_blackjack(self, db: sqlite3.Connection | None = None) -> dict | None:
         if db is None:

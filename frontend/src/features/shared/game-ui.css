@@ -68,6 +68,13 @@
 .game-bet-input-wrap { transition: border-color var(--motion-fast) var(--ease-ui), background-color var(--motion-fast) var(--ease-ui), box-shadow var(--motion-fast) var(--ease-ui); }
 .game-bet-input-wrap:focus-within { border-color: var(--color-brass-strong); box-shadow: 0 0 0 1px rgb(230 209 156 / 16%); }
 .game-bet-input-wrap:has(input[aria-invalid="true"]) { border-color: #a45e55; background: #1d1715; }
+
+/* Inputs retain a single focus boundary; actions use contrast instead of boxes. */
+.game-action-primary, .game-action-secondary { border: 0; }
+.game-action-primary:hover:not(:disabled), .game-action-secondary:hover:not(:disabled), .game-action-primary:disabled, .game-action-secondary:disabled { border-color: transparent; }
+.game-bet-control { border-color: #303831; }
+.game-bet-adjust button { border: 0; background: #20251f; }
+.game-bet-input-wrap { border-color: #3b433b; }
 .game-action-primary:disabled, .game-action-secondary:disabled, .game-bet-adjust button:disabled { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .game-action-primary:hover:not(:disabled), .game-action-secondary:hover:not(:disabled), .game-bet-adjust button:hover:not(:disabled),

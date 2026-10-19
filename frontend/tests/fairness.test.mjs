@@ -136,6 +136,12 @@ test('blackjack browser verifier accepts the shuffled draw prefix and rejects a 
     rules_snapshot: rules,
     outcome: {
       draw_order: draws,
+      draw_events: [
+        { card: draws[0], target: 'hand:0' },
+        { card: draws[1], target: 'dealer' },
+        { card: draws[2], target: 'hand:0' },
+        { card: draws[3], target: 'dealer' },
+      ],
       dealer_cards: [draws[1], draws[3]],
       hands: [{
         cards: [draws[0], draws[2]],
@@ -155,5 +161,17 @@ test('blackjack browser verifier accepts the shuffled draw prefix and rejects a 
   assert.equal(await verifyFairRound({
     ...round,
     outcome: { ...round.outcome, draw_order: ['2♠', ...draws.slice(1)] },
+  }, undefined, fairness.server_seed_hash), false)
+  assert.equal(await verifyFairRound({
+    ...round,
+    outcome: {
+      ...round.outcome,
+      draw_events: [
+        { card: draws[0], target: 'dealer' },
+        { card: draws[1], target: 'hand:0' },
+        { card: draws[2], target: 'dealer' },
+        { card: draws[3], target: 'hand:0' },
+      ],
+    },
   }, undefined, fairness.server_seed_hash), false)
 })

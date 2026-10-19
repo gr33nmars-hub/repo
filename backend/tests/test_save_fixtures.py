@@ -164,6 +164,38 @@ class SavedDataFixtureTests(unittest.TestCase):
                     db.execute("SELECT SUM(delta) FROM ledger").fetchone()[0], ledger_before
                 )
 
+    def test_new_one_shot_round_history_must_match_its_ledger_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "casino.sqlite3"
+            session = CasinoService(PlayerRepository(path))
+            session.play("roulette", 10, "red", "linked-round")
+
+            with closing(sqlite3.connect(path)) as db:
+                saved = json.loads(
+                    db.execute("SELECT rounds_json FROM profile WHERE id=1").fetchone()[0]
+                )
+                self.assertTrue(saved[0]["round_id"])
+                self.assertEqual(
+                    db.execute(
+                        "SELECT COUNT(*) FROM ledger WHERE round_id=?", (saved[0]["round_id"],)
+                    ).fetchone()[0],
+                    2,
+                )
+                saved[0]["payout"] += 1
+                db.execute("UPDATE profile SET rounds_json=? WHERE id=1", (json.dumps(saved),))
+                db.commit()
+
+            with self.assertRaisesRegex(RuntimeError, "history does not match"):
+                CasinoService(PlayerRepository(path))
+
+            with closing(sqlite3.connect(path)) as db:
+                saved[0]["payout"] -= 1
+                db.execute("UPDATE profile SET rounds_json='[]' WHERE id=1")
+                db.commit()
+
+            with self.assertRaisesRegex(RuntimeError, "history does not match"):
+                CasinoService(PlayerRepository(path))
+
 
 if __name__ == "__main__":
     unittest.main()

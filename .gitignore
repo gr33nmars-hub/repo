@@ -48,6 +48,11 @@ agent/*
 !agent/skills/
 !agent/skills/**
 
+# Repository-local agent/tool copies are not application runtime
+.agents/
+.claude/
+agent/
+
 # IDE
 .idea/
 .vscode/

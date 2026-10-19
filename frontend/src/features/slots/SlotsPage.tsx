@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import type { GameInfo, RoundResult } from '../../types'
 import { BetControl } from '../shared/BetControl'
 import { SlotSymbol } from './SlotSymbol'
-import { FairnessPanel } from '../shared/FairnessPanel'
 import './slots.css'
 
 interface SlotsPageProps {
@@ -12,7 +11,6 @@ interface SlotsPageProps {
   busy: boolean
   blocked?: boolean
   initialRound?: RoundResult
-  serverSeedHash?: string
   onBalanceHold: (balance: number | null) => void
   onAmountChange: (value: string) => void
   onPlay: () => Promise<RoundResult | null>
@@ -70,7 +68,7 @@ interface StopMotion {
   result: RoundResult | null
 }
 
-export function SlotsPage({ game, balance, amount, busy, blocked = false, initialRound, serverSeedHash, onBalanceHold, onAmountChange, onPlay }: SlotsPageProps) {
+export function SlotsPage({ game, balance, amount, busy, blocked = false, initialRound, onBalanceHold, onAmountChange, onPlay }: SlotsPageProps) {
   const strips = game.reel_strips?.length === 3 && game.reel_strips.every((strip) => strip.length > 0)
     ? game.reel_strips
     : null
@@ -244,7 +242,6 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
             </> : <p>Здесь появится итог после первого вращения.</p>}
           </div>
           <p className="slots-console-hint">Выплата определяется таблицей сочетаний.</p>
-          <FairnessPanel commitment={serverSeedHash} round={result ?? undefined} game={game} />
         </aside>
       </div>
 

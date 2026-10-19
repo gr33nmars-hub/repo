@@ -3,6 +3,7 @@ import os
 import uvicorn
 from casino.persistence.sqlite import configured_save_paths
 from casino.process_lock import BackendProcessLock
+from casino.session_report import SessionReportWriter
 
 if __name__ == "__main__":
     database_path, _ = configured_save_paths()
@@ -18,4 +19,5 @@ if __name__ == "__main__":
             )
         )
         app.state.request_shutdown = lambda: setattr(server, "should_exit", True)
+        app.state.record_session = SessionReportWriter().record
         server.run()

@@ -123,8 +123,10 @@ class ApiTokenTests(unittest.TestCase):
 
     def test_shutdown_requires_token_and_only_runs_for_a_sidecar(self) -> None:
         calls: list[str] = []
+        reports: list[str] = []
         app.state.api_token = "shutdown-secret"
         app.state.request_shutdown = lambda: calls.append("requested")
+        app.state.record_session = lambda login: reports.append(login)
 
         missing_status, _, _ = asyncio.run(asgi_request("POST", "/api/shutdown"))
         valid_status, _, valid_body = asyncio.run(
@@ -139,6 +141,7 @@ class ApiTokenTests(unittest.TestCase):
         self.assertEqual(valid_status, 200)
         self.assertEqual(json.loads(valid_body), {"status": "shutting_down"})
         self.assertEqual(calls, ["requested"])
+        self.assertEqual(reports, [casino.player.name])
 
         app.state.api_token = None
         app.state.request_shutdown = lambda: calls.append("unsafe")
@@ -146,6 +149,7 @@ class ApiTokenTests(unittest.TestCase):
         self.assertEqual(no_token_status, 404)
         self.assertEqual(json.loads(no_token_body)["code"], "not_found")
         self.assertEqual(calls, ["requested"])
+        app.state.record_session = None
 
     def test_health_nonce_matches_only_the_configured_instance(self) -> None:
         app.state.api_token = None

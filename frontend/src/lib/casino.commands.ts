@@ -11,32 +11,19 @@ import { CasinoApiError, requestApi } from './httpClient'
 const PENDING_REQUESTS_STORAGE_KEY = 'noir-casino.pending-requests.v1'
 const SLOT_CLIENT_SEED_KEY = 'noir-casino.slot-client-seed.v1'
 const FAIR_CLIENT_SEED_KEY = 'noir-casino.fair-client-seed.v1'
-const requestKey = () => crypto.randomUUID()
-let volatileSlotClientSeed: string | undefined
+const createRequestKey = () => crypto.randomUUID()
+let volatileClientSeed: string | undefined
 
-function slotClientSeed(): string {
+function clientSeed(storageKey: string): string {
   try {
-    const existing = localStorage.getItem(SLOT_CLIENT_SEED_KEY)
+    const existing = localStorage.getItem(storageKey)
     if (existing) return existing
     const seed = crypto.randomUUID()
-    localStorage.setItem(SLOT_CLIENT_SEED_KEY, seed)
+    localStorage.setItem(storageKey, seed)
     return seed
   } catch {
-    volatileSlotClientSeed ??= 'browser-' + requestKey()
-    return volatileSlotClientSeed
-  }
-}
-
-function fairClientSeed(): string {
-  try {
-    const existing = localStorage.getItem(FAIR_CLIENT_SEED_KEY)
-    if (existing) return existing
-    const seed = crypto.randomUUID()
-    localStorage.setItem(FAIR_CLIENT_SEED_KEY, seed)
-    return seed
-  } catch {
-    volatileSlotClientSeed ??= 'browser-' + requestKey()
-    return volatileSlotClientSeed
+    volatileClientSeed ??= 'browser-' + createRequestKey()
+    return volatileClientSeed
   }
 }
 
@@ -98,7 +85,7 @@ export async function requestMutation<T>(operation: string, path: string, payloa
   if (pending && pending.payload !== serializedPayload) {
     throw new CasinoApiError('Предыдущий запрос ещё не подтверждён. Повтори его с теми же параметрами.', 0)
   }
-  const active: PendingMutation = pending ?? { key: requestKey(), payload: serializedPayload }
+  const active: PendingMutation = pending ?? { key: createRequestKey(), payload: serializedPayload }
   mutations[operation] = active
   const clearPending = (request: PendingMutation) => {
     const latest = readPendingMutations()
@@ -161,7 +148,7 @@ export function slotMutationPayload(
   return {
     bet,
     choice: '',
-    client_seed: slotClientSeed(),
+    client_seed: clientSeed(SLOT_CLIENT_SEED_KEY),
     ...(expectedServerSeedHash ? { expected_server_seed_hash: expectedServerSeedHash } : {}),
   }
 }
@@ -174,7 +161,7 @@ export function fairMutationPayload(
   return {
     bet,
     choice,
-    client_seed: fairClientSeed(),
+    client_seed: clientSeed(FAIR_CLIENT_SEED_KEY),
     ...(expectedServerSeedHash ? { expected_server_seed_hash: expectedServerSeedHash } : {}),
   }
 }

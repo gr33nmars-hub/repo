@@ -4,11 +4,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .oop import ComparableEntity
 from .rule_metadata import validate_rule_metadata
 
 
-@dataclass(slots=True)
-class GameResult:
+@dataclass(slots=True, eq=False)
+class GameResult(ComparableEntity):
     game_id: str
     game_name: str
     message: str
@@ -21,6 +22,7 @@ class GameResult:
     played_at: str = field(
         default_factory=lambda: datetime.now().astimezone().isoformat(timespec="seconds")
     )
+    round_id: str | None = None
     rule_version: str | None = None
     rules_fingerprint: str | None = None
     rules_snapshot: dict[str, Any] | None = None
@@ -57,11 +59,24 @@ class GameResult:
             or any(type(stop) is not int or stop < 0 for stop in self.reel_stops)
         ):
             raise ValueError("Game result reel stops must be non-negative integers")
+        if self.round_id is not None and (type(self.round_id) is not str or not self.round_id):
+            raise ValueError("Game result round id must be a non-empty string")
         validate_rule_metadata(
             self.rule_version,
             self.rules_fingerprint,
             self.rules_snapshot,
             self.outcome,
+        )
+
+    def comparison_key(self) -> tuple[object, ...]:
+        return (
+            self.round_id or "",
+            self.played_at,
+            self.game_id,
+            self.game_name,
+            self.bet,
+            self.payout,
+            self.details,
         )
 
     @property
@@ -85,6 +100,8 @@ class GameResult:
             result["reel_stops"] = self.reel_stops
         if self.fairness is not None:
             result["fairness"] = self.fairness
+        if self.round_id is not None:
+            result["round_id"] = self.round_id
         if self.rule_version is not None:
             result["rule_version"] = self.rule_version
             result["rules_fingerprint"] = self.rules_fingerprint
@@ -120,6 +137,12 @@ class GameResult:
         for key in ("rule_version", "rules_fingerprint"):
             if key in data and data[key] is not None and type(data[key]) is not str:
                 raise ValueError(f"Game result {key} must be a string")
+        if (
+            "round_id" in data
+            and data["round_id"] is not None
+            and type(data["round_id"]) is not str
+        ):
+            raise ValueError("Game result round_id must be a string")
         for key in ("rules_snapshot", "outcome"):
             if key in data and data[key] is not None and type(data[key]) is not dict:
                 raise ValueError(f"Game result {key} must be an object")
@@ -134,6 +157,7 @@ class GameResult:
             reel_stops=data.get("reel_stops"),
             fairness=data.get("fairness"),
             played_at=data.get("played_at", ""),
+            round_id=data.get("round_id"),
             rule_version=data.get("rule_version"),
             rules_fingerprint=data.get("rules_fingerprint"),
             rules_snapshot=data.get("rules_snapshot"),
@@ -141,8 +165,8 @@ class GameResult:
         )
 
 
-@dataclass(slots=True)
-class Player:
+@dataclass(slots=True, eq=False)
+class Player(ComparableEntity):
     name: str = "Гость"
     balance: int = 2500
     rounds: list[GameResult] = field(default_factory=list)
@@ -156,6 +180,9 @@ class Player:
             not isinstance(round_, GameResult) for round_ in self.rounds
         ):
             raise ValueError("Player rounds must contain game results")
+
+    def comparison_key(self) -> tuple[object, ...]:
+        return (self.name, self.balance, tuple(self.rounds))
 
     def debit(self, amount: int) -> None:
         if type(amount) is not int or amount < 0:
@@ -208,8 +235,8 @@ class Player:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class Card:
+@dataclass(frozen=True, slots=True, eq=False)
+class Card(ComparableEntity):
     rank: str
     suit: str
 
@@ -218,6 +245,9 @@ class Card:
             raise ValueError("Invalid card rank")
         if self.suit not in {"♠", "♥", "♣", "♦"}:
             raise ValueError("Invalid card suit")
+
+    def comparison_key(self) -> tuple[object, ...]:
+        return (self.rank, self.suit)
 
     @property
     def value(self) -> int:

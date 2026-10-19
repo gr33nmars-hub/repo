@@ -150,6 +150,17 @@
 .table-entry:hover .table-entry-action { background: #ead39c; }
 .table-entry-action svg { width: 17px; height: 17px; transition: transform 160ms ease; }
 .table-entry:hover .table-entry-action svg { transform: translateX(3px); }
+
+/* Keep the room visuals as the hierarchy; remove ornamental container outlines. */
+.table-entry { border: 0; background: #131713; box-shadow: inset 0 -1px #333a32; }
+.table-entry:hover { border-color: transparent; box-shadow: inset 0 -1px #756946; }
+.table-entry-symbol { border: 0; background: rgb(23 28 24 / 88%); }
+.table-limits { border-color: #303831; }
+.table-entry-action { border: 0; }
+.player-ledger, .lobby-recent { border: 0; border-top: 1px solid #3a4038; background: transparent; }
+.player-ledger h2, .lobby-section-heading { border-color: #343b34; }
+.ledger-stats > div { border-color: #303831; }
+.lobby-empty { border: 0; border-left: 2px solid #4d554a; background: #171b18; }
 .lobby-lower-grid { display: grid; grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr); gap: 16px; margin-top: 28px; }
 .player-ledger, .lobby-recent { min-width: 0; min-height: 236px; border: 1px solid #4c4939; border-radius: 10px; background: #171b18; }
 .player-ledger { padding: 17px 21px 18px; }

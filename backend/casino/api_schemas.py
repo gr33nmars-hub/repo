@@ -58,6 +58,7 @@ class RoundResultResponse(BaseModel):
     profit: int
     details: str
     played_at: str
+    round_id: str | None = None
     symbols: list[str] | None = None
     reel_stops: list[int] | None = None
     fairness: dict[str, Any] | None = None

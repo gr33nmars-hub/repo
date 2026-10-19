@@ -1,5 +1,4 @@
-const fairSeedFields = ['bet', 'choice', 'client_seed', 'expected_server_seed_hash']
-const slotFields = ['bet', 'choice', 'client_seed', 'expected_server_seed_hash']
+const seededBetFields = ['bet', 'choice', 'client_seed', 'expected_server_seed_hash']
 const actions = new Set(['hit', 'stand', 'double', 'split', 'surrender', 'insurance', 'decline_insurance'])
 
 function isRecord(value) {
@@ -24,16 +23,16 @@ function validSeededBet(payload, choices) {
 const contracts = {
   'play:slots': {
     path: '/api/games/slots/play',
-    validate: (payload) => hasExactFields(payload, slotFields) && validSeededBet(payload, ['']),
+    validate: (payload) => hasExactFields(payload, seededBetFields) && validSeededBet(payload, ['']),
   },
   'play:roulette': {
     path: '/api/games/roulette/play',
-    validate: (payload) => hasExactFields(payload, fairSeedFields)
+    validate: (payload) => hasExactFields(payload, seededBetFields)
       && validSeededBet(payload, ['red', 'black', 'zero']),
   },
   'blackjack:start': {
     path: '/api/blackjack/start',
-    validate: (payload) => hasExactFields(payload, fairSeedFields) && validSeededBet(payload, ['']),
+    validate: (payload) => hasExactFields(payload, seededBetFields) && validSeededBet(payload, ['']),
   },
   refill: {
     path: '/api/refill',

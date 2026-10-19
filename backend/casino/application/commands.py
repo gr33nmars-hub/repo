@@ -6,6 +6,7 @@ import secrets
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from typing import Protocol
+from uuid import uuid4
 
 from casino.application.errors import IdempotencyConflict, StaleGameState
 from casino.application.ports import CasinoRepository, CasinoUnitOfWork
@@ -15,6 +16,7 @@ from casino.domain.errors import InvalidCasinoCommand
 from casino.domain.games import Roulette, SlotMachine
 from casino.domain.ledger import LedgerEntryType, LedgerMovement
 from casino.domain.models import GameResult, Player
+from casino.domain.oop import PairMap
 from casino.domain.provably_fair import bounded_int
 from casino.domain.slot_fairness import reel_stops, seed_hash
 
@@ -27,7 +29,7 @@ class CasinoCommandContext(Protocol):
 
     player: Player
     blackjack: Blackjack
-    games: dict[str, CasinoGame]
+    games: PairMap[str, CasinoGame]
     _server_seed: str
     _revision: int
     REFILL_AMOUNT: int
@@ -83,6 +85,27 @@ def _command_transaction(service: CasinoCommandContext) -> Iterator[CasinoUnitOf
             raise
 
 
+def _ensure_current_seed(expected_hash: str | None, server_seed: str, message: str) -> None:
+    if expected_hash is not None and expected_hash != seed_hash(server_seed):
+        raise StaleGameState(message)
+
+
+def _client_seed(client_seed: str, request_key: str) -> str:
+    resolved_seed = client_seed or request_key
+    if len(resolved_seed) > 128:
+        raise InvalidCasinoCommand("Слишком длинный client seed")
+    return resolved_seed
+
+
+def _fairness_proof(server_seed: str, client_seed: str) -> dict[str, str | int]:
+    return {
+        "server_seed": server_seed,
+        "server_seed_hash": seed_hash(server_seed),
+        "client_seed": client_seed,
+        "nonce": 0,
+    }
+
+
 def play_game(
     service: CasinoCommandContext,
     game_id: str,
@@ -112,72 +135,51 @@ def play_game(
         if game is None:
             raise InvalidCasinoCommand("Такой игры нет")
         service._validate_bet(game, bet)
-        before = service.player.balance
-        before_rounds = service.player.rounds.copy()
         previous_seed = service._server_seed
-        try:
-            if expected_server_seed_hash is not None and expected_server_seed_hash != seed_hash(
-                previous_seed
-            ):
-                message = (
-                    "Seed для барабанов изменился. Состояние обновлено; проверь стол."
-                    if game_id == "slots"
-                    else "Seed игры изменился. Состояние обновлено; проверь стол."
-                )
-                raise StaleGameState(message)
-            actual_client_seed = client_seed or request_key
-            if len(actual_client_seed) > 128:
-                raise InvalidCasinoCommand("Слишком длинный client seed")
-            if isinstance(game, SlotMachine):
-                stops = reel_stops(
-                    previous_seed,
-                    actual_client_seed,
-                    [len(reel) for reel in game.slot_rules.reels],
-                )
-                result = game.play_at_stops(bet, stops)
-                result.fairness = {
-                    "server_seed": previous_seed,
-                    "server_seed_hash": seed_hash(previous_seed),
-                    "client_seed": actual_client_seed,
-                    "nonce": 0,
-                }
-            elif isinstance(game, Roulette):
-                result = game.play_at_number(
-                    bet,
-                    choice,
-                    bounded_int(previous_seed, actual_client_seed, 0, "roulette", 0, 37),
-                )
-                result.fairness = {
-                    "server_seed": previous_seed,
-                    "server_seed_hash": seed_hash(previous_seed),
-                    "client_seed": actual_client_seed,
-                    "nonce": 0,
-                }
-            else:
-                result = game.play(bet, choice)
-            service._server_seed = secrets.token_hex(32)
-            unit_of_work.set_server_seed(service._server_seed)
-            service.player.debit(bet)
-            service.player.credit(result.payout)
-            service._record(result)
-            response = {"result": result.to_dict(), "state": service.state()}
-            unit_of_work.save(
-                service.player,
-                service.blackjack.dump_state(),
-                request_key=request_key,
-                signature=signature,
-                ledger_entries=[
-                    LedgerMovement(LedgerEntryType.BET_STAKE, -bet),
-                    LedgerMovement(LedgerEntryType.GAME_PAYOUT, result.payout),
-                ],
-                response=response,
+        stale_message = (
+            "Seed для барабанов изменился. Состояние обновлено; проверь стол."
+            if game_id == "slots"
+            else "Seed игры изменился. Состояние обновлено; проверь стол."
+        )
+        _ensure_current_seed(expected_server_seed_hash, previous_seed, stale_message)
+        actual_client_seed = _client_seed(client_seed, request_key)
+        if isinstance(game, SlotMachine):
+            stops = reel_stops(
+                previous_seed,
+                actual_client_seed,
+                [len(reel) for reel in game.slot_rules.reels],
             )
-            service._revision = unit_of_work.revision()
-        except Exception:
-            service.player.balance = before
-            service.player.rounds = before_rounds
-            service._server_seed = previous_seed
-            raise
+            result = game.play_at_stops(bet, stops)
+            result.fairness = _fairness_proof(previous_seed, actual_client_seed)
+        elif isinstance(game, Roulette):
+            result = game.play_at_number(
+                bet,
+                choice,
+                bounded_int(previous_seed, actual_client_seed, 0, "roulette", 0, 37),
+            )
+            result.fairness = _fairness_proof(previous_seed, actual_client_seed)
+        else:
+            result = game.play(bet, choice)
+        result.round_id = uuid4().hex
+        service._server_seed = secrets.token_hex(32)
+        unit_of_work.set_server_seed(service._server_seed)
+        service.player.debit(bet)
+        service.player.credit(result.payout)
+        service._record(result)
+        response = {"result": result.to_dict(), "state": service.state()}
+        unit_of_work.save(
+            service.player,
+            service.blackjack.dump_state(),
+            request_key=request_key,
+            signature=signature,
+            ledger_entries=[
+                LedgerMovement(LedgerEntryType.BET_STAKE, -bet),
+                LedgerMovement(LedgerEntryType.GAME_PAYOUT, result.payout),
+            ],
+            response=response,
+            round_id=result.round_id,
+        )
+        service._revision = unit_of_work.revision()
         return response
 
 
@@ -215,58 +217,40 @@ def start_blackjack(
         if service.blackjack.hand and service.blackjack.hand.status in {"playing", "insurance"}:
             raise InvalidCasinoCommand("Сначала закончи текущую раздачу")
         service._validate_bet(service.blackjack, bet)
-        before = service.player.balance
-        before_rounds = service.player.rounds.copy()
-        previous = service.blackjack.dump_state()
-        previous_deck = service.blackjack.deck.copy()
         previous_seed = service._server_seed
-        try:
-            if expected_server_seed_hash is not None and expected_server_seed_hash != seed_hash(
-                previous_seed
-            ):
-                raise StaleGameState("Seed игры изменился. Состояние обновлено; проверь стол.")
-            actual_client_seed = client_seed or request_key
-            if len(actual_client_seed) > 128:
-                raise InvalidCasinoCommand("Слишком длинный client seed")
-            proof = {
-                "server_seed": previous_seed,
-                "server_seed_hash": seed_hash(previous_seed),
-                "client_seed": actual_client_seed,
-                "nonce": 0,
-            }
-            service.player.debit(bet)
-            hand = service.blackjack.start(
-                bet,
-                fairness=proof,
-                server_seed=previous_seed,
-                client_seed=actual_client_seed,
-            )
-            entries = [LedgerMovement(LedgerEntryType.BLACKJACK_STAKE, -bet)]
-            if hand.status not in {"playing", "insurance"}:
-                result = service.blackjack.result()
-                service.player.credit(result.payout)
-                service._record(result)
-                entries.append(LedgerMovement(LedgerEntryType.BLACKJACK_PAYOUT, result.payout))
-                service._server_seed = secrets.token_hex(32)
-                unit_of_work.set_server_seed(service._server_seed)
-            state = service.state()
-            unit_of_work.save(
-                service.player,
-                service.blackjack.dump_state(),
-                request_key=request_key,
-                signature=signature,
-                ledger_entries=entries,
-                response=state,
-                round_id=hand.round_id,
-            )
-            service._revision = unit_of_work.revision()
-        except Exception:
-            service.player.balance = before
-            service.blackjack.restore_state(previous)
-            service.blackjack.deck = previous_deck
-            service.player.rounds = before_rounds
-            service._server_seed = previous_seed
-            raise
+        _ensure_current_seed(
+            expected_server_seed_hash,
+            previous_seed,
+            "Seed игры изменился. Состояние обновлено; проверь стол.",
+        )
+        actual_client_seed = _client_seed(client_seed, request_key)
+        proof = _fairness_proof(previous_seed, actual_client_seed)
+        service.player.debit(bet)
+        hand = service.blackjack.start(
+            bet,
+            fairness=proof,
+            server_seed=previous_seed,
+            client_seed=actual_client_seed,
+        )
+        entries = [LedgerMovement(LedgerEntryType.BLACKJACK_STAKE, -bet)]
+        if hand.status not in {"playing", "insurance"}:
+            result = service.blackjack.result()
+            service.player.credit(result.payout)
+            service._record(result)
+            entries.append(LedgerMovement(LedgerEntryType.BLACKJACK_PAYOUT, result.payout))
+            service._server_seed = secrets.token_hex(32)
+            unit_of_work.set_server_seed(service._server_seed)
+        state = service.state()
+        unit_of_work.save(
+            service.player,
+            service.blackjack.dump_state(),
+            request_key=request_key,
+            signature=signature,
+            ledger_entries=entries,
+            response=state,
+            round_id=hand.round_id,
+        )
+        service._revision = unit_of_work.revision()
         return state
 
 
@@ -281,37 +265,28 @@ def blackjack_action(
         hand = service.blackjack.hand
         if hand is None or hand.status not in {"playing", "insurance"}:
             raise InvalidCasinoCommand("Сейчас нет активной раздачи")
-        before_balance, before_state = service.player.balance, service.blackjack.dump_state()
-        before_rounds = service.player.rounds.copy()
-        try:
-            entries: list[LedgerMovement] = []
-            transition = service.blackjack.act(action, service.player.balance)
-            for movement in transition.ledger_entries:
-                if movement.delta < 0:
-                    service.player.debit(-movement.delta)
-                else:
-                    service.player.credit(movement.delta)
-            if transition.result is not None:
-                service._record(transition.result)
-                service._server_seed = secrets.token_hex(32)
-                unit_of_work.set_server_seed(service._server_seed)
-            entries.extend(transition.ledger_entries)
-            response = service.state()
-            unit_of_work.save(
-                service.player,
-                service.blackjack.dump_state(),
-                request_key=request_key,
-                signature=signature,
-                ledger_entries=entries,
-                response=response,
-                round_id=hand.round_id,
-            )
-            service._revision = unit_of_work.revision()
-        except Exception:
-            service.player.balance = before_balance
-            service.blackjack.restore_state(before_state)
-            service.player.rounds = before_rounds
-            raise
+        transition = service.blackjack.act(action, service.player.balance)
+        entries = list(transition.ledger_entries)
+        for movement in transition.ledger_entries:
+            if movement.delta < 0:
+                service.player.debit(-movement.delta)
+            else:
+                service.player.credit(movement.delta)
+        if transition.result is not None:
+            service._record(transition.result)
+            service._server_seed = secrets.token_hex(32)
+            unit_of_work.set_server_seed(service._server_seed)
+        response = service.state()
+        unit_of_work.save(
+            service.player,
+            service.blackjack.dump_state(),
+            request_key=request_key,
+            signature=signature,
+            ledger_entries=entries,
+            response=response,
+            round_id=hand.round_id,
+        )
+        service._revision = unit_of_work.revision()
         return response
 
 
@@ -327,19 +302,14 @@ def refill(service: CasinoCommandContext, request_key: str) -> int:
             raise InvalidCasinoCommand(
                 "Пополнение станет доступно, когда не хватит на минимальную ставку"
             )
-        before = service.player.balance
         service.player.credit(service.REFILL_AMOUNT)
-        try:
-            unit_of_work.save(
-                service.player,
-                service.blackjack.dump_state(),
-                request_key=request_key,
-                signature=signature,
-                ledger_entries=[LedgerMovement(LedgerEntryType.DEMO_REFILL, service.REFILL_AMOUNT)],
-                response={"balance": service.player.balance},
-            )
-            service._revision = unit_of_work.revision()
-        except Exception:
-            service.player.balance = before
-            raise
+        unit_of_work.save(
+            service.player,
+            service.blackjack.dump_state(),
+            request_key=request_key,
+            signature=signature,
+            ledger_entries=[LedgerMovement(LedgerEntryType.DEMO_REFILL, service.REFILL_AMOUNT)],
+            response={"balance": service.player.balance},
+        )
+        service._revision = unit_of_work.revision()
         return service.player.balance

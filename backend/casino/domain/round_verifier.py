@@ -20,6 +20,12 @@ def verification_status(result: dict[str, Any]) -> str:
         return "legacy-unverified"
     if not verify_recorded_round(result):
         return "invalid"
+    if (
+        result.get("game_id") == "blackjack"
+        and result.get("fairness") is not None
+        and not isinstance(result.get("outcome", {}).get("draw_events"), list)
+    ):
+        return "legacy-unverified"
     if result.get("game_id") in {"roulette", "blackjack"} and result.get("fairness") is None:
         return "legacy-unverified"
     return "verified"
@@ -234,11 +240,16 @@ def _verify_blackjack(
         fair_shuffle(shoe, proof["server_seed"], proof["client_seed"], proof["nonce"])
         if len(draw_order) > len(shoe) or draw_order != shoe[: len(draw_order)]:
             return False
-        recorded_cards = dealer_cards + [
-            card for hand in hands if type(hand) is dict for card in hand.get("cards", [])
-        ]
-        if sorted(recorded_cards) != sorted(draw_order):
-            return False
+        draw_events = outcome.get("draw_events")
+        if draw_events is not None:
+            if not _draw_events_match(draw_order, draw_events, dealer_cards, hands):
+                return False
+        else:
+            recorded_cards = dealer_cards + [
+                card for hand in hands if type(hand) is dict for card in hand.get("cards", [])
+            ]
+            if sorted(recorded_cards) != sorted(draw_order):
+                return False
     if any(type(card) is not str or card[-1:] not in {"♠", "♥", "♣", "♦"} for card in dealer_cards):
         return False
     dealer_score, _ = _card_score(dealer_cards)
@@ -378,6 +389,34 @@ def _verify_blackjack(
     if not contenders and len(dealer_cards) != 2:
         return False
     return payout == expected_payout
+
+
+def _draw_events_match(
+    draw_order: list[str], events: object, dealer_cards: list[Any], hands: list[Any]
+) -> bool:
+    if type(events) is not list or len(events) != len(draw_order):
+        return False
+    dealer: list[str] = []
+    allocated: list[list[str]] = [[] for _ in hands]
+    for card, event in zip(draw_order, events, strict=True):
+        if (
+            type(event) is not dict
+            or set(event) != {"card", "target"}
+            or event.get("card") != card
+            or type(event.get("target")) is not str
+        ):
+            return False
+        target = event["target"]
+        if target == "dealer":
+            dealer.append(card)
+            continue
+        if not target.startswith("hand:") or not target.removeprefix("hand:").isdigit():
+            return False
+        index = int(target.removeprefix("hand:"))
+        if not 0 <= index < len(allocated):
+            return False
+        allocated[index].append(card)
+    return dealer == dealer_cards and allocated == [hand.get("cards") for hand in hands]
 
 
 def _valid_proof(proof: dict[str, Any] | None) -> bool:

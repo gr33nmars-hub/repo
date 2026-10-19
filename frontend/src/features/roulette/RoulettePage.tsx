@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameInfo, RoundResult, RouletteChoice } from '../../types'
 import { BetControl } from '../shared/BetControl'
-import { FairnessPanel } from '../shared/FairnessPanel'
 import './roulette.css'
 
 interface Props {
@@ -14,7 +13,6 @@ interface Props {
   onAmountChange: (value: string) => void
   onChoice: (choice: RouletteChoice) => void
   onPlay: () => Promise<RoundResult | null>
-  serverSeedHash?: string
   initialRound?: RoundResult
 }
 
@@ -56,7 +54,7 @@ function colorOf(number: number) {
   return number === 0 ? 'zero' : reds.has(number) ? 'red' : 'black'
 }
 
-export function RoulettePage({ game, balance, amount, choice, busy, blocked = false, onAmountChange, onChoice, onPlay, serverSeedHash, initialRound }: Props) {
+export function RoulettePage({ game, balance, amount, choice, busy, blocked = false, onAmountChange, onChoice, onPlay, initialRound }: Props) {
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<RoundResult | null>(initialRound ?? null)
   const rotor = useRef<SVGGElement>(null)
@@ -234,7 +232,6 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
       </div>
 
       <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} disabled={blocked} actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
-      <FairnessPanel commitment={serverSeedHash} round={result ?? undefined} game={game} />
     </div>
   )
 }

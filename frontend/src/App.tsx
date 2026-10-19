@@ -95,7 +95,6 @@ function App() {
           amount={amount}
           minimum={gameInfo.minimum_bet}
           maximum={gameInfo.maximum_bet}
-          serverSeedHash={state.server_seed_hash ?? undefined}
           busy={casino.busy}
           onAmountChange={setWager}
           onStart={() => void casino.startBlackjack(amount, state.server_seed_hash ?? undefined)}
@@ -117,7 +116,6 @@ function App() {
           busy={casino.busy}
           blocked={blackjackInProgress}
           initialRound={state.history.find((round) => round.game_id === 'slots')}
-          serverSeedHash={state.slots_server_seed_hash ?? undefined}
           onBalanceHold={setSlotHeldBalance}
           onAmountChange={setWager}
           onPlay={() => casino.play('slots', amount, '', state.slots_server_seed_hash ?? undefined)}
@@ -140,7 +138,6 @@ function App() {
           blocked={blackjackInProgress}
           onAmountChange={setWager}
           onChoice={setRouletteChoice}
-          serverSeedHash={state.server_seed_hash ?? undefined}
           initialRound={state.history.find((round) => round.game_id === 'roulette')}
           onPlay={() => casino.play('roulette', amount, rouletteChoice, state.server_seed_hash ?? undefined)}
         />

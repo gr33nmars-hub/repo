@@ -142,3 +142,12 @@
 @media (prefers-reduced-motion: reduce) {
   .slots-table.is-winning .slots-bulbs i { animation-duration: .01ms; animation-iteration-count: 1; }
 }
+
+/* Reduce the nested machine frame to one silhouette and let the reels carry the detail. */
+.slots-table { border: 0; box-shadow: inset 0 0 0 1px rgb(174 139 81 / 30%), 0 22px 50px rgb(0 0 0 / 24%); }
+.slots-table-edge { border: 0; }
+.slots-machine { border: 0; box-shadow: inset 0 1px 0 #dbc28a, 0 16px 30px rgb(0 0 0 / 30%); }
+.slots-reels { border: 0; box-shadow: inset 0 2px 8px #000; }
+.slots-console { border: 0; border-top: 1px solid #41483d; }
+.slots-page .game-action-primary { border: 0; }
+.slots-payout-item { border: 0; box-shadow: inset 0 -1px #3b4637; }

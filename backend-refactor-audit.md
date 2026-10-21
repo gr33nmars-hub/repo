@@ -27,7 +27,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 ## Remaining verification
 
 - The local Windows environment has no Cargo or Visual Studio C++ Build Tools, so the installer cannot be built here. GitHub Actions completed the Windows installer build and packaged-sidecar smoke test successfully.
-- The workflow update in commit `733da0a` is running as [GitHub Actions run 39628458556](https://github.com/gr33nmars-hub/repo/actions/runs/39628458556); that run has not completed yet.
+- The Node 24 action update and Ubuntu 24.04 pin passed in [GitHub Actions run 39628458556](https://github.com/gr33nmars-hub/repo/actions/runs/39628458556). The latest code and workflow passed all jobs, including Windows packaging and sidecar smoke, in [run 39629304074](https://github.com/gr33nmars-hub/repo/actions/runs/39629304074).
 - The backend suite emits one upstream deprecation warning from Starlette/AnyIO while importing `TestClient`; there are no project test failures.
 
 ## Checks run
@@ -40,4 +40,4 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 - `npm run lint` and `npm run build` — passed.
 - `npm run build:desktop` and `npm run smoke:sidecar` — passed on Windows.
 - `npm run tauri:build` — not available locally because Cargo and Visual Studio C++ Build Tools are missing.
-- [GitHub Actions run 39625137964](https://github.com/gr33nmars-hub/repo/actions/runs/39625137964) for `8b8d199` — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded.
+- [GitHub Actions run 39629304074](https://github.com/gr33nmars-hub/repo/actions/runs/39629304074) for `f5f72a1` — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded with the updated action runtimes and Ubuntu 24.04 runners.

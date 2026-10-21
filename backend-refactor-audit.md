@@ -6,7 +6,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 | Priority | Finding | Current status |
 | --- | --- | --- |
-| High | Blackjack actions could bypass balance checks, and mutable round state escaped the engine. | Fixed: `act(action, balance)` is the action entry point; `hand` returns a detached copy; `Shoe` owns its lists and exposes tuples. Tests cover denied double/split, invalid phases, and immutable shoe views. |
+| High | Blackjack actions could bypass balance checks, and mutable card collections were exposed from round state. | Fixed: `act(action, balance)` is the action entry point; `hand` returns a detached copy; `PlayerHand.cards` and `Shoe` card views are tuples. The engine alone mutates a hand's card list. Tests cover denied double/split, invalid phases, detached state, and immutable card views. |
 | High | Blackjack combined game rules, API projection, and save-version handling; `GameResult` also owned API and persistence dictionaries. | Fixed: state and result projections live in `application/queries.py`; profile/history encoding and decoding live in `persistence/codecs.py`; blackjack save compatibility lives in `persistence/blackjack_codec.py`. Domain models no longer expose `to_dict`/`from_dict`. |
 | High | Same-balance writes needed a different-key race test. | Covered: `test_concurrency.py` races independent services against one SQLite file and checks the wallet, ledger, and idempotency results. Writes begin with `BEGIN IMMEDIATE`. |
 | Medium | Tests used hand-built ASGI plumbing and inconsistent assertion patterns. | Simplified: backend tests use pytest, and API tests use FastAPI `TestClient` with a fresh database per test. The suite has no `unittest.TestCase` tests. |

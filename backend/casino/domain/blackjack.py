@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Literal
@@ -63,15 +64,43 @@ class BlackjackRules:
             raise ValueError("Invalid blackjack rules")
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class PlayerHand:
-    cards: list[Card]
+    _cards: list[Card]
     bet: int
     status: PlayerHandStatus = "playing"
     from_split: bool = False
     split_aces: bool = False
     doubled: bool = False
     message: str = ""
+
+    def __init__(
+        self,
+        cards: Sequence[Card],
+        bet: int,
+        status: PlayerHandStatus = "playing",
+        from_split: bool = False,
+        split_aces: bool = False,
+        doubled: bool = False,
+        message: str = "",
+    ) -> None:
+        self._cards = list(cards)
+        self.bet = bet
+        self.status = status
+        self.from_split = from_split
+        self.split_aces = split_aces
+        self.doubled = doubled
+        self.message = message
+
+    @property
+    def cards(self) -> tuple[Card, ...]:
+        return tuple(self._cards)
+
+    def _draw(self, card: Card) -> None:
+        self._cards.append(card)
+
+    def _split_card(self) -> Card:
+        return self._cards.pop()
 
 
 @dataclass(slots=True)
@@ -208,7 +237,7 @@ class Blackjack:
             raise ValueError("Некорректный состав башмака")
 
     @staticmethod
-    def score(cards: list[Card]) -> int:
+    def score(cards: Sequence[Card]) -> int:
         total = sum(card.value for card in cards)
         aces = sum(card.rank == "A" for card in cards)
         while total > 21 and aces:
@@ -217,11 +246,11 @@ class Blackjack:
         return total
 
     @classmethod
-    def _is_natural(cls, cards: list[Card]) -> bool:
+    def _is_natural(cls, cards: Sequence[Card]) -> bool:
         return len(cards) == 2 and cls.score(cards) == 21
 
     @staticmethod
-    def _soft(cards: list[Card]) -> bool:
+    def _soft(cards: Sequence[Card]) -> bool:
         return (
             any(c.rank == "A" for c in cards)
             and sum(1 if c.rank == "A" else c.value for c in cards) + 10 <= 21
@@ -411,7 +440,7 @@ class Blackjack:
             round_.active_hand_index = next_index
             next_hand = round_.hands[next_index]
             if len(next_hand.cards) == 1:
-                next_hand.cards.append(self._draw_for(f"hand:{next_index}"))
+                next_hand._draw(self._draw_for(f"hand:{next_index}"))
             if self.score(next_hand.cards) == 21:
                 next_hand.status = "standing"
                 next_hand.message = "21 после разделения · выплата как за обычную руку"
@@ -423,7 +452,7 @@ class Blackjack:
 
     def _hit(self) -> BlackjackRound:
         round_, current = self._current("hit")
-        current.cards.append(self._draw_for(f"hand:{round_.active_hand_index}"))
+        current._draw(self._draw_for(f"hand:{round_.active_hand_index}"))
         score = self.score(current.cards)
         if score > 21:
             current.status, current.message = "bust", "Перебор"
@@ -444,7 +473,7 @@ class Blackjack:
         round_, current = self._current("double")
         current.bet *= 2
         current.doubled = True
-        current.cards.append(self._draw_for(f"hand:{round_.active_hand_index}"))
+        current._draw(self._draw_for(f"hand:{round_.active_hand_index}"))
         current.status = "bust" if self.score(current.cards) > 21 else "standing"
         current.message = (
             "Перебор после удвоения" if current.status == "bust" else "Удвоение · одна карта"
@@ -455,7 +484,7 @@ class Blackjack:
     def _split(self) -> BlackjackRound:
         round_, current = self._current("split")
         index = round_.active_hand_index
-        second = current.cards.pop()
+        second = current._split_card()
         ace = current.cards[0].rank == "A"
         current.from_split = True
         current.split_aces = ace
@@ -470,12 +499,12 @@ class Blackjack:
                 if event.get("target") == f"hand:{index}" and event.get("card") == second.label:
                     event["target"] = f"hand:{index + 1}"
                     break
-        current.cards.append(self._draw_for(f"hand:{index}"))
+        current._draw(self._draw_for(f"hand:{index}"))
         if self.score(current.cards) == 21:
             current.status = "standing"
             current.message = "21 после разделения · выплата как за обычную руку"
         if ace:
-            new.cards.append(self._draw_for(f"hand:{index + 1}"))
+            new._draw(self._draw_for(f"hand:{index + 1}"))
             current.status = new.status = "standing"
             current.message = new.message = "После разделения тузов выдана одна карта"
             self._advance()

@@ -23,7 +23,10 @@ def test_hand_property_returns_detached_state() -> None:
 
     exposed_hand = game.hand
     assert exposed_hand is not None
-    exposed_hand.hands[0].cards.clear()
+    exposed_cards = exposed_hand.hands[0].cards
+    assert isinstance(exposed_cards, tuple)
+    with pytest.raises(AttributeError):
+        exposed_cards.clear()
 
     assert len(game.hand.hands[0].cards) == 2
 

@@ -5,6 +5,10 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from casino.domain.blackjack import Blackjack
+from casino.domain.core import CasinoGame
+from casino.domain.games import SlotMachine
+
 CASINO_ROOT = Path(__file__).parents[1] / "casino"
 
 
@@ -47,6 +51,12 @@ def test_blackjack_engine_does_not_own_api_or_save_serialization() -> None:
     }
 
     assert not methods & {"state", "dump_state", "restore_state"}
+
+
+def test_domain_games_do_not_build_api_catalog_views() -> None:
+    assert not hasattr(CasinoGame, "catalog_info")
+    assert not hasattr(SlotMachine, "catalog_info")
+    assert not hasattr(Blackjack, "catalog_info")
 
 
 def test_domain_records_do_not_own_dictionary_serialization() -> None:

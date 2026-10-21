@@ -16,10 +16,6 @@ class RandomSource(Protocol):
     def shuffle(self, x: list[T]) -> None: ...
 
 
-class GameCatalogItem(Protocol):
-    def catalog_info(self) -> dict[str, object]: ...
-
-
 class SecureRandom:
     def choice(self, seq: Sequence[T]) -> T:
         return secrets.choice(seq)
@@ -58,11 +54,3 @@ class CasinoGame(ABC):
     @abstractmethod
     def play(self, bet: int, choice: str = "") -> GameResult:
         pass
-
-    def catalog_info(self) -> dict[str, object]:
-        return {
-            "id": self.game_id,
-            "name": self.name,
-            "minimum_bet": self.minimum_bet,
-            "maximum_bet": self.rules.maximum_bet,
-        }

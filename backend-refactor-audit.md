@@ -7,7 +7,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 | Priority | Finding | Current status |
 | --- | --- | --- |
 | High | Blackjack actions could bypass balance checks, and mutable card collections were exposed from round state. | Fixed: `act(action, balance)` is the action entry point; `hand` returns a detached copy; `PlayerHand.cards` and `Shoe` card views are tuples. The engine alone mutates a hand's card list. Tests cover denied double/split, invalid phases, detached state, and immutable card views. |
-| High | Blackjack combined game rules, API projection, and save-version handling; `GameResult` also owned API and persistence dictionaries. | Fixed: state and result projections live in `application/queries.py`; profile/history encoding and decoding live in `persistence/codecs.py`; blackjack save compatibility lives in `persistence/blackjack_codec.py`. Domain models no longer expose `to_dict`/`from_dict`. |
+| High | Blackjack combined game rules, API catalog projection, and save-version handling; `GameResult` also owned API and persistence dictionaries. | Fixed: state, result, and game-catalog projections live in `application/queries.py`; profile/history encoding and decoding live in `persistence/codecs.py`; blackjack save compatibility lives in `persistence/blackjack_codec.py`. Domain models no longer expose API `catalog_info` or `to_dict`/`from_dict` methods. |
 | High | Same-balance writes needed a different-key race test. | Covered: `test_concurrency.py` races independent services against one SQLite file and checks the wallet, ledger, and idempotency results. Writes begin with `BEGIN IMMEDIATE`. |
 | Medium | Tests used hand-built ASGI plumbing and inconsistent assertion patterns. | Simplified: backend tests use pytest, and API tests use FastAPI `TestClient` with a fresh database per test. The suite has no `unittest.TestCase` tests. |
 | Medium | The checkout mixed Tauri configuration with a partial PyWebView migration. | Corrected: PyWebView entry points and dependency were removed; Tauri starts the API sidecar in packaged builds and the API/Vite processes during development. Public-facing product metadata now says NOIR Casino Club. |
@@ -28,10 +28,10 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Checks run
 
-- `uv run --directory backend --group test pytest -q` — 344 passed.
+- `uv run --group test pytest -q` — 345 passed.
 - `uv run --directory backend --group quality ruff check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality ruff format --check casino tests run_api.py` — passed.
-- `uv run --directory backend --group quality mypy --show-error-codes --python-version 3.10 casino run_api.py` — passed on Linux CI and locally for both `linux` and `win32` targets.
+- `uv run --group quality mypy --show-error-codes --python-version 3.10 backend/casino backend/run_api.py` — passed for both `linux` and `win32` targets.
 - `npm run test:unit` — 15 passed.
 - `npm run lint` and `npm run build` — passed.
 - `npm run build:desktop` and `npm run smoke:sidecar` — passed on Windows.

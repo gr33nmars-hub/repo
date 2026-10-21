@@ -171,14 +171,6 @@ class Blackjack:
     def minimum_bet(self) -> int:
         return self.rules.minimum_bet
 
-    def catalog_info(self) -> dict[str, object]:
-        return {
-            "id": self.game_id,
-            "name": self.name,
-            "minimum_bet": self.minimum_bet,
-            "maximum_bet": self.rules.maximum_bet,
-        }
-
     def snapshot(self) -> BlackjackSnapshot:
         return BlackjackSnapshot(deepcopy(self._hand), self._shoe.copy())
 

@@ -143,18 +143,6 @@ class SlotMachine(CasinoGame):
             outcome=outcome,
         )
 
-    def catalog_info(self) -> dict[str, object]:
-        return {
-            **super().catalog_info(),
-            "paytable": [
-                {"symbol": symbol, "multiplier": multiplier}
-                for symbol, multiplier in self.slot_rules.triples
-            ],
-            "pair_multiplier": self.slot_rules.pair_multiplier,
-            "theoretical_return_percent": self.slot_rules.theoretical_return_percent,
-            "reel_strips": [list(reel) for reel in self.slot_rules.reels],
-        }
-
 
 RED_NUMBERS = frozenset({1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36})
 EUROPEAN_WHEEL = tuple(range(37))

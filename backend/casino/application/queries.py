@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from casino.domain.blackjack import Blackjack
-from casino.domain.core import GameCatalogItem
+from casino.domain.core import CasinoGame
+from casino.domain.games import SlotMachine
 from casino.domain.models import GameResult, Player
 from casino.domain.round_verifier import verification_status
 from casino.domain.slot_fairness import seed_hash
@@ -93,9 +94,29 @@ def game_result_view(round_: GameResult) -> dict[str, object]:
     return result
 
 
+def game_catalog_item(game: CasinoGame | Blackjack) -> dict[str, object]:
+    item: dict[str, object] = {
+        "id": game.game_id,
+        "name": game.name,
+        "minimum_bet": game.minimum_bet,
+        "maximum_bet": game.rules.maximum_bet,
+    }
+    if isinstance(game, SlotMachine):
+        item.update(
+            paytable=[
+                {"symbol": symbol, "multiplier": multiplier}
+                for symbol, multiplier in game.slot_rules.triples
+            ],
+            pair_multiplier=game.slot_rules.pair_multiplier,
+            theoretical_return_percent=game.slot_rules.theoretical_return_percent,
+            reel_strips=[list(reel) for reel in game.slot_rules.reels],
+        )
+    return item
+
+
 def casino_state(
     player: Player,
-    games: Iterable[GameCatalogItem],
+    games: Iterable[CasinoGame | Blackjack],
     blackjack: Blackjack,
     server_seed: str,
 ) -> dict[str, object]:
@@ -116,7 +137,7 @@ def casino_state(
             "win_rate": round(player.wins / total * 100) if total else 0,
             "total_wagered": player.total_wagered,
         },
-        "games": [game.catalog_info() for game in games],
+        "games": [game_catalog_item(game) for game in games],
         "history": rounds,
         "blackjack": blackjack_view(blackjack, player.balance),
         "server_seed_hash": seed_hash(server_seed),

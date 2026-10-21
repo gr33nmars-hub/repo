@@ -2,7 +2,7 @@ from fractions import Fraction
 from itertools import product
 
 import pytest
-from casino.application.queries import game_result_view
+from casino.application.queries import game_catalog_item, game_result_view
 from casino.domain.games import RED_NUMBERS, Roulette, SlotMachine, SlotRules
 
 
@@ -79,7 +79,7 @@ def test_slot_reel_strips_keep_original_symbol_frequencies() -> None:
             "💎": 1,
             "7️⃣": 1,
         }
-    assert SlotMachine(slot_rules=rules).catalog_info()["reel_strips"] == [
+    assert game_catalog_item(SlotMachine(slot_rules=rules))["reel_strips"] == [
         list(reel) for reel in rules.reels
     ]
 

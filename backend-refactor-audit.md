@@ -17,6 +17,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 - Each committed blackjack round uses a fresh, deterministically shuffled six-deck shoe. A shared shoe across rounds would require a different seed/nonce and save protocol; it is not introduced as a side effect of this refactor.
 - The fairness verifier recalculates results independently of the game payout methods. Keep seed encoding, nonce use, shuffle order, wheel mapping, and reel mapping covered by fixed vectors.
+- Provably fair bounded sampling rejects ranges outside the SHA-256 space instead of looping forever.
 - SQLite save migrations remain forward-only and preserve legacy fixtures. The repository makes an integrity-checked backup before migrating a non-empty save.
 - The API token header and save-path environment names retain their Astoria spelling for compatibility. They are internal names, not user-facing product branding.
 
@@ -28,7 +29,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Checks run
 
-- `uv run --directory backend --group test pytest -q` — 339 passed.
+- `uv run --directory backend --group test pytest -q` — 343 passed.
 - `uv run --directory backend --group quality ruff check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality ruff format --check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality mypy --python-version 3.10 casino run_api.py` — passed.

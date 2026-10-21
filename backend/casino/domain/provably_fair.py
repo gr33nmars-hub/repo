@@ -18,9 +18,9 @@ def digest(server_seed: str, client_seed: str, nonce: int, stream: str, index: i
 def bounded_int(
     server_seed: str, client_seed: str, nonce: int, stream: str, index: int, bound: int
 ) -> int:
-    if type(bound) is not int or bound < 1:
-        raise ValueError("Bound must be a positive integer")
     space = 1 << 256
+    if type(bound) is not int or not 1 <= bound <= space:
+        raise ValueError("Bound must be between 1 and 2**256")
     cutoff = space - space % bound
     for counter in count():
         candidate = int.from_bytes(

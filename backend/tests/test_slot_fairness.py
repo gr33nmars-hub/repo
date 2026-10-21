@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from casino.application.errors import IdempotencyConflict
 from casino.application.service import CasinoService
+from casino.domain.provably_fair import bounded_int
 from casino.domain.slot_fairness import new_server_seed, reel_stops, seed_hash
 from casino.persistence.sqlite import PlayerRepository
 
@@ -14,6 +15,12 @@ def test_hmac_stop_vector_is_stable() -> None:
         seed_hash("00" * 32) == "60e05bd1b195af2f94112fa7197a5c88289058840ce7c6df9693756bc6250f55"
     )
     assert reel_stops("00" * 32, "client-seed", [8, 8, 8]) == [1, 2, 1]
+
+
+@pytest.mark.parametrize("bound", [0, -1, 1 << 256 | 1, True])
+def test_bounded_int_rejects_unrepresentable_bounds(bound: int) -> None:
+    with pytest.raises(ValueError, match="Bound"):
+        bounded_int("seed", "client", 0, "test", 0, bound)
 
 
 def test_reel_stop_mapping_is_repeatable_and_within_each_strip() -> None:

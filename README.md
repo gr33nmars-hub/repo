@@ -36,7 +36,7 @@ From the repository root:
 uv run --directory backend --group test pytest -q
 uv run --directory backend --group quality ruff check casino tests run_api.py
 uv run --directory backend --group quality ruff format --check casino tests run_api.py
-uv run --directory backend --group quality mypy --python-version 3.10 casino
+uv run --directory backend --group quality mypy --show-error-codes --python-version 3.10 casino run_api.py
 ```
 
 From `frontend/`:

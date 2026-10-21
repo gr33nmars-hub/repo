@@ -23,18 +23,17 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Remaining verification
 
-- Full Tauri installer creation was attempted but could not run in this Windows environment because the Visual Studio C++ build tools were unavailable. The packaged sidecar itself did build and passed `npm run smoke:sidecar`.
+- The local Windows environment has no Cargo or Visual Studio C++ Build Tools, so the installer cannot be built here. GitHub Actions completed the Windows installer build and packaged-sidecar smoke test successfully.
 - The backend suite emits one upstream deprecation warning from Starlette/AnyIO while importing `TestClient`; there are no project test failures.
-- The Windows Tauri bundle still needs verification on a machine with the required native toolchain. The repository workflow now builds the Windows app and smoke-tests the packaged sidecar.
 
 ## Checks run
 
 - `uv run --directory backend --group test pytest -q` — 344 passed.
 - `uv run --directory backend --group quality ruff check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality ruff format --check casino tests run_api.py` — passed.
-- `uv run --directory backend --group quality mypy --python-version 3.10 casino run_api.py` — passed.
+- `uv run --directory backend --group quality mypy --show-error-codes --python-version 3.10 casino run_api.py` — passed on Linux CI and locally for both `linux` and `win32` targets.
 - `npm run test:unit` — 15 passed.
 - `npm run lint` and `npm run build` — passed.
 - `npm run build:desktop` and `npm run smoke:sidecar` — passed on Windows.
-- `npm run tauri:build` — not completed because the local Visual Studio C++ toolchain check failed.
-- Latest public GitHub Actions runs failed in backend tests/types and the Windows desktop build. Their job logs are not available anonymously, so the exact hosted-run errors remain unverified; the matching backend suite, Ruff checks, and configured Mypy command pass locally on Windows.
+- `npm run tauri:build` — not available locally because Cargo and Visual Studio C++ Build Tools are missing.
+- [GitHub Actions run 39612324612](https://github.com/gr33nmars-hub/repo/actions/runs/39612324612) — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded.

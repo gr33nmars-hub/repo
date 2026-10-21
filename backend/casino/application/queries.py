@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from copy import deepcopy
 
 from casino.domain.blackjack import Blackjack
 from casino.domain.core import CasinoGame
@@ -77,19 +78,19 @@ def game_result_view(round_: GameResult) -> dict[str, object]:
         "played_at": round_.played_at,
     }
     if round_.symbols is not None:
-        result["symbols"] = round_.symbols
+        result["symbols"] = round_.symbols.copy()
     if round_.reel_stops is not None:
-        result["reel_stops"] = round_.reel_stops
+        result["reel_stops"] = round_.reel_stops.copy()
     if round_.fairness is not None:
-        result["fairness"] = round_.fairness
+        result["fairness"] = deepcopy(round_.fairness)
     if round_.round_id is not None:
         result["round_id"] = round_.round_id
     if round_.rule_version is not None:
         result.update(
             rule_version=round_.rule_version,
             rules_fingerprint=round_.rules_fingerprint,
-            rules_snapshot=round_.rules_snapshot,
-            outcome=round_.outcome,
+            rules_snapshot=deepcopy(round_.rules_snapshot),
+            outcome=deepcopy(round_.outcome),
         )
     return result
 

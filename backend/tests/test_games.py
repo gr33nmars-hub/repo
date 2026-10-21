@@ -1,5 +1,6 @@
 from fractions import Fraction
 from itertools import product
+from typing import Any, cast
 
 import pytest
 from casino.application.queries import game_catalog_item, game_result_view
@@ -104,6 +105,24 @@ def test_slot_reel_strips_keep_original_symbol_frequencies() -> None:
     assert game_catalog_item(SlotMachine(slot_rules=rules))["reel_strips"] == [
         list(reel) for reel in rules.reels
     ]
+
+
+def test_game_result_view_does_not_expose_mutable_domain_fields() -> None:
+    result = SlotMachine(rng=FixedRandom([0, 1, 2])).play(10)
+    result.fairness = {"proof": {"client_seed": "original"}}
+    view = cast(Any, game_result_view(result))
+
+    view["symbols"][0] = "changed"
+    view["reel_stops"][0] = 7
+    view["fairness"]["proof"]["client_seed"] = "changed"
+    view["rules_snapshot"]["reels"][0][0] = "changed"
+    view["outcome"]["symbols"][0] = "changed"
+
+    assert result.symbols == ["🍒", "🍒", "🍋"]
+    assert result.reel_stops == [0, 1, 2]
+    assert result.fairness == {"proof": {"client_seed": "original"}}
+    assert result.rules_snapshot["reels"][0][0] == "🍒"
+    assert result.outcome["symbols"] == ["🍒", "🍒", "🍋"]
 
 
 @pytest.mark.parametrize(

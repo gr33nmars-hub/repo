@@ -32,10 +32,11 @@ export interface BlackjackOutcome {
     status: BlackjackHandStatus
     from_split: boolean
     doubled: boolean
-    split_aces?: boolean
+    split_aces: boolean
   }>
   insurance_bet: number
   insurance_payout: number
+  draw_order?: string[]
 }
 
 export interface BlackjackPlayerHand {
@@ -56,9 +57,6 @@ export interface PlayerState {
   losses: number
   win_rate: number
   total_wagered: number
-  client_seed?: string
-  nonce?: number
-  current_server_seed_hash?: string
 }
 
 export interface GameInfo {
@@ -73,7 +71,6 @@ export interface GameInfo {
 }
 
 export interface RoundResult {
-  id?: number
   game_id: GameId
   game_name: string
   message: string
@@ -83,9 +80,14 @@ export interface RoundResult {
   details: string
   symbols?: string[] | null
   reel_stops?: number[] | null
-  outcome?: SlotOutcome | RouletteOutcome | BlackjackOutcome | null
   fairness?: FairnessProof | null
+  rule_version?: string | null
+  rules_fingerprint?: string | null
+  rules_snapshot?: Record<string, unknown> | null
+  outcome?: SlotOutcome | RouletteOutcome | BlackjackOutcome | null
+  verification_status?: 'verified' | 'invalid' | 'legacy-unverified' | null
   played_at: string
+  round_id?: string | null
 }
 
 export interface BlackjackState {
@@ -105,7 +107,6 @@ export interface BlackjackState {
   insurance_bet: number
   insurance_payout: number
   rules: Record<string, unknown>
-  fairness?: FairnessProof | null
 }
 
 export interface CasinoState {
@@ -113,6 +114,7 @@ export interface CasinoState {
   games: GameInfo[]
   history: RoundResult[]
   blackjack: BlackjackState | null
+  slots_server_seed_hash?: string | null
   server_seed_hash?: string | null
 }
 

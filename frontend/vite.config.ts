@@ -10,7 +10,7 @@ export default defineConfig({
       allow: ['..'],
     },
     watch: {
-      ignored: ['**/dist/**', '**/.venv/**'],
+      ignored: ['**/build/**', '**/src-tauri/target/**', '**/src-tauri/binaries/**'],
     },
   },
 })

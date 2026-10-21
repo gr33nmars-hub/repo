@@ -60,11 +60,11 @@ button:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-vis
 }
 
 /* Structural rules only: surfaces are separated by tone and space, not stacked frames. */
-.noir-sidebar { border-right-color: #283029; }
-.noir-brand, .noir-guest, .noir-sidebar-footer { border-color: #29312b; }
-.noir-nav-item { border: 0; border-left: 2px solid transparent; }
-.noir-nav-item:hover { border-color: transparent; border-left-color: #7d704b; }
-.noir-nav-item.is-current { border-color: transparent; border-left-color: var(--color-brass); }
-.noir-wallet { border: 0; border-left: 2px solid #4b4939; background: #1a1f1a; }
-.noir-refill { border: 0; }
-.noir-error-banner, .noir-error-mark, .noir-error-banner button { border: 0; }
+.sidebar { border-right-color: #283029; }
+.sidebar-brand, .sidebar-guest, .sidebar-footer { border-color: #29312b; }
+.sidebar-nav-item { border: 0; border-left: 2px solid transparent; }
+.sidebar-nav-item:hover { border-color: transparent; border-left-color: #7d704b; }
+.sidebar-nav-item.is-current { border-color: transparent; border-left-color: var(--color-brass); }
+.sidebar-wallet { border: 0; border-left: 2px solid #4b4939; background: #1a1f1a; }
+.sidebar-refill { border: 0; }
+.app-error-banner, .app-error-mark, .app-error-banner button { border: 0; }

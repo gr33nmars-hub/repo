@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window and scoped backend sidecar permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/astoria-api",
+          "sidecar": true,
+          "args": []
+        }
+      ]
+    },
+    "shell:allow-kill",
+    "core:window:allow-destroy"
+  ]
+}

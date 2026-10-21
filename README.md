@@ -1,85 +1,67 @@
 # NOIR Casino Club
 
-Автономное десктопное приложение игрового симулятора в стилистике нео-нуар.
-Включает клиент на React / TypeScript, локальный асинхронный сервер на FastAPI, встроенное хранилище SQLite (WAL-режим) и криптографический модуль **Provably Fair** на базе HMAC-SHA256 для детерминированной верификации честности каждого раунда.
+NOIR Casino Club is a local desktop simulator for blackjack, European roulette, and three-reel slots with a single payline. It uses virtual points only: there are no deposits, withdrawals, payments, or real-money prizes.
 
-> **Примечание:** Приложение оперирует исключительно виртуальными фишками. Реальные платежи и азартные игры на деньги отсутствуют.
+## Stack
 
----
+- Python 3.10+, FastAPI, SQLite in WAL mode
+- Tauri v2 with a Python API sidecar
+- React 19, TypeScript, and Vite
+- HMAC-SHA256 round proofs with server-seed commitments and deterministic outcome verification
 
-## Архитектура и технологии
+## Run on Windows
 
-- **Desktop Shell:** PyWebView (интеграция с нативным системным WebView2)
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, SQLite3 (ACID, WAL mode, strict CHECK constraints)
-- **Frontend:** React 19, TypeScript, Vite, CSS Custom Properties (темная нео-нуар тема)
-- **Криптография:**
-  - Генерация серверной энтропии через CSPRNG (`os.urandom`) вместо псевдослучайного MT19937.
-  - Схема обязательства (Commitment Scheme): SHA-256 хеш сида отдается клиенту до размещения ставки.
-  - Детерминированный срез исхода через `HMAC-SHA256(server_seed, f"{client_seed}:{nonce}")`.
-  - Возможность ротации и раскрытия предыдущих сидов для независимой математической проверки.
-- **Игровая логика:**
-  - **Блэкджек (Blackjack):** башмак из 6 колод, тасование Фишера-Йетса, поддержка Hit, Stand, Double, Split (до 4 рук), Surrender, Insurance, правило Soft 17.
-  - **Европейская рулетка:** 37 секторов (0–36), расчет выплат по цветам и зеро.
-  - **Классические слоты 3×3:** независимые барабанные ленты, взвешенные символы, таблица выплат за пары и тройки (RTP 95.8%).
+Install [uv](https://docs.astral.sh/uv/), [Node.js](https://nodejs.org/), Rust with the MSVC target, and the Visual Studio C++ build tools.
 
----
-
-## Структура репозитория
-
-```
-├── app.py                     # Точка входа: инициализация FastAPI и окна PyWebView
-├── pyproject.toml             # Зависимости Python
-├── Semerka.spec               # Спецификация PyInstaller для сборки standalone .exe
-├── backend/
-│   ├── main.py                # REST API эндпоинты (FastAPI, CORS, Lifespan)
-│   ├── database.py            # SQLite: транзакции, WAL, потокобезопасность
-│   ├── games/
-│   │   ├── provably_fair.py   # CSPRNG, Commitment Scheme, HMAC-SHA256
-│   │   ├── blackjack.py       # Доменные модели: Card, Hand, Shoe, FSM
-│   │   ├── roulette.py        # RouletteGame, секторы, коэффициенты
-│   │   └── slots.py           # SlotGame, выплатные линии
-│   └── tests/
-│       ├── test_games_and_fairness.py         # Юнит-тесты правил и криптографии
-│       └── test_transactions_concurrency.py   # Стресс-тест конкурентных списаний
-└── frontend/
-    ├── src/
-    │   ├── types.ts           # Интерфейсы DTO и типизация
-    │   ├── hooks/useCasino.ts # Управление состоянием клиента и API
-    │   ├── components/        # Shell, Sidebar, Lobby
-    │   └── features/          # Модули залов (Blackjack, Roulette, Slots, History)
-    └── vite.config.ts         # Конфигурация сборщика Vite
-```
-
----
-
-## Запуск и разработка
-
-### 1. Установка зависимостей Python
 ```powershell
-uv sync
-```
-
-### 2. Запуск тестов
-```powershell
-$env:PYTHONPATH="backend"
-uv run pytest backend/tests/ -v
-```
-
-### 3. Запуск десктопного приложения
-```powershell
-uv run python app.py
-```
-
-### 4. Режим веб-разработки (Hot Reload)
-**Терминал 1 (API-сервер):**
-```powershell
-uv run python backend/main.py
-```
-
-**Терминал 2 (Frontend):**
-```powershell
+uv sync --all-groups
 cd frontend
-npm install
-npm run dev
+npm ci
+npm run tauri:dev
 ```
-Интерфейс доступен по адресу `http://localhost:5173`.
+
+To create the Windows installer:
+
+```powershell
+npm run tauri:build
+```
+
+The Tauri build runs Vite and packages the FastAPI service as a sidecar. The app stores its local profile under `~/.astoria-casino` to preserve existing saves.
+
+## Development checks
+
+From the repository root:
+
+```powershell
+uv run --directory backend --group test pytest -q
+uv run --directory backend --group quality ruff check casino tests run_api.py
+uv run --directory backend --group quality ruff format --check casino tests run_api.py
+uv run --directory backend --group quality mypy --python-version 3.10 casino
+```
+
+From `frontend/`:
+
+```powershell
+npm run test:unit
+npm run lint
+npm run build
+```
+
+## Project layout
+
+```text
+backend/casino/domain/       Game rules, state transitions, fairness algorithms
+backend/casino/application/  Use cases and read models
+backend/casino/persistence/  SQLite repository, migrations, save codecs
+backend/tests/               Domain, API, persistence, and concurrency tests
+frontend/src/                React UI and typed API client
+frontend/src-tauri/          Tauri v2 app, permissions, and Windows packaging
+```
+
+## Fairness
+
+Each round publishes a hash commitment to the server seed. Outcomes are derived from the revealed seed, client seed, and nonce with HMAC-SHA256. The client can verify completed rounds from the disclosed proof data. Changes to the proof format or outcome mapping require compatibility tests and a protocol version change.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

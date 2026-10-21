@@ -1,0 +1,77 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Backend tests
+        run: uv run --directory backend --group test pytest -q
+      - name: Backend lint and format
+        run: |
+          uv run --directory backend --group quality ruff check casino tests run_api.py
+          uv run --directory backend --group quality ruff format --check casino tests run_api.py
+      - name: Backend types
+        run: uv run --directory backend --group quality mypy --python-version 3.10 casino run_api.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend tests, lint, and build
+        working-directory: frontend
+        run: |
+          npm run test:unit
+          npm run lint
+          npm run build
+
+  windows-desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build Tauri desktop app
+        working-directory: frontend
+        run: npm run tauri:build
+      - name: Smoke-test packaged API sidecar
+        working-directory: frontend
+        run: npm run smoke:sidecar

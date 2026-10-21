@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { PlayerState } from '../../types'
 import { Icon } from './Icon'
-import { NoirSidebar } from './AppSidebar'
+import { Sidebar } from './Sidebar'
 import type { RoomRoute } from './RoomRoute'
 
 export type { RoomRoute } from './RoomRoute'
@@ -14,29 +14,18 @@ interface AppShellProps {
   isBusy: boolean
   canRefill: boolean
   error: string | null
+  retryAvailable: boolean
   onNavigate: (room: RoomRoute) => void
   onRetry: () => void
   onRefill: () => void
   children: ReactNode
 }
 
-export function AppShell({
-  room,
-  player,
-  balanceHeld = false,
-  isConnected,
-  isBusy,
-  canRefill,
-  error,
-  onNavigate,
-  onRetry,
-  onRefill,
-  children
-}: AppShellProps) {
+export function AppShell({ room, player, balanceHeld = false, isConnected, isBusy, canRefill, error, retryAvailable, onNavigate, onRetry, onRefill, children }: AppShellProps) {
   return (
-    <div className="noir-shell">
+    <div className="app-shell">
       <a className="skip-link" href="#main-content">К содержимому</a>
-      <NoirSidebar
+      <Sidebar
         room={room}
         player={player}
         balanceHeld={balanceHeld}
@@ -46,22 +35,19 @@ export function AppShell({
         onRefill={onRefill}
       />
 
-      <div className="noir-main">
-        <main className="noir-content" id="main-content" tabIndex={-1}>
+      <div className="app-main">
+        <main className="app-content" id="main-content" tabIndex={-1}>
           {error && error !== 'Сначала закончи текущую раздачу блэкджека' && isConnected && (
-            <div className="noir-error-banner" role="alert">
-              <span className="noir-error-mark" aria-hidden="true">!</span>
-              <div>
-                <strong>Внимание</strong>
-                <p>{error}</p>
-              </div>
+            <div className="app-error-banner" role="alert">
+              <span className="app-error-mark" aria-hidden="true">!</span>
+              <div><strong>Действие не выполнено</strong><p>{error}</p></div>
               <button type="button" onClick={onRetry}>
                 <Icon name="retry" />
-                Обновить данные
+                {retryAvailable ? 'Повторить действие' : 'Обновить состояние'}
               </button>
             </div>
           )}
-          <div className="noir-room-view" key={room}>{children}</div>
+          <div className="app-room-view" key={room}>{children}</div>
         </main>
       </div>
     </div>

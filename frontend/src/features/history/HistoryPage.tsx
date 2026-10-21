@@ -22,25 +22,18 @@ function formatAmount(value: number) {
 
 export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: HistoryPageProps) {
   if (loading) {
-    return (
-      <section className="history-state history-state--loading" aria-live="polite" aria-busy="true">
-        <h1>Журнал раундов</h1>
-        <div className="history-loading-lines" aria-hidden="true"><span /><span /><span /></div>
-      </section>
-    )
+    return <section className="history-state history-state--loading" aria-live="polite" aria-busy="true">
+      <h1>Загружаем историю</h1>
+      <div className="history-loading-lines" aria-hidden="true"><span /><span /><span /></div>
+    </section>
   }
 
   if (error && !state) {
-    return (
-      <section className="history-state history-state--error" aria-live="polite">
-        <h1>История временно недоступна</h1>
-        <p>{error}</p>
-        <button className="game-action-secondary" type="button" onClick={onRetry}>
-          <Icon name="retry" />
-          Повторить запрос
-        </button>
-      </section>
-    )
+    return <section className="history-state history-state--error" aria-live="polite">
+      <h1>История недоступна</h1>
+      <p>{error}</p>
+      <button className="game-action-secondary" type="button" onClick={onRetry}><Icon name="retry" />Повторить запрос</button>
+    </section>
   }
 
   const rounds = state?.history ?? []
@@ -48,11 +41,8 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
   return (
     <div className="history-page">
       <header className="game-page-heading">
-        <div>
-          <h1>Журнал раундов</h1>
-          <p>Аудит ставок, исходов и криптографических доказательств Provably Fair (HMAC-SHA256).</p>
-        </div>
-        <span className="history-count">Последние {rounds.length}</span>
+        <div><h1>История раундов</h1><p>Ставки, выплаты и итоги.</p></div>
+        <span className="history-count">{rounds.length}</span>
       </header>
 
       {rounds.length ? (
@@ -61,13 +51,13 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
             <li className="history-round" key={`${round.played_at}-${round.game_id}-${index}`}>
               <div className="history-round-main">
                 <strong>{round.game_name}</strong>
+                {round.verification_status && <small className="history-round-verification">
+                  {round.verification_status === 'verified' ? 'Результат проверен'
+                    : round.verification_status === 'legacy-unverified' ? 'Старая запись · без проверки'
+                      : 'Проверка результата не пройдена'}
+                </small>}
                 <span>{round.message}</span>
                 <time dateTime={round.played_at}>{formatDate(round.played_at)}</time>
-                {round.fairness && (
-                  <div style={{ marginTop: '6px', fontSize: '10px', color: '#8d9489', fontFamily: 'var(--mono)' }}>
-                    SHA-256 Hash: {round.fairness.server_seed_hash ? `${round.fairness.server_seed_hash.slice(0, 16)}...` : 'N/A'} (Nonce: {round.fairness.nonce})
-                  </div>
-                )}
               </div>
               <dl className="history-round-amounts">
                 <div><dt>Ставка</dt><dd>{round.bet.toLocaleString('ru-RU')}</dd></div>
@@ -81,11 +71,9 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
         </ol>
       ) : (
         <section className="history-state history-state--empty" aria-live="polite">
-          <h2>Завершенных раундов пока нет</h2>
-          <p>Сыгранные партии отобразятся в этом реестре с хешем раунда.</p>
-          <button className="game-action-secondary" type="button" onClick={onOpenLobby}>
-            Перейти к столам <Icon name="arrow" />
-          </button>
+          <h2>Завершённых раундов пока нет</h2>
+          <p>Здесь появятся сыгранные раунды.</p>
+          <button className="game-action-secondary" type="button" onClick={onOpenLobby}>Перейти в лобби <Icon name="arrow" /></button>
         </section>
       )}
     </div>

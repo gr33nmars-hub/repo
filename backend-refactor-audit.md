@@ -1,6 +1,6 @@
 # Backend audit and refactor status
 
-Updated 2026-10-21 from the current working tree. The audit checks the Python domain, application and SQLite layers, tests, API boundary, and the Windows desktop integration. It describes code behavior; it does not infer who or what authored it. The follow-up fixes recorded here are local and have not been pushed to GitHub.
+Updated 2026-10-21 for published revision `9f82c73794337fbfe36823ed5bdbbaf154eababa`. The audit checks the Python domain, application and SQLite layers, tests, API boundary, and the Windows desktop integration. It describes code behavior; it does not infer who or what authored it.
 
 ## Findings and changes
 
@@ -39,15 +39,14 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Remaining verification
 
-- The local Windows environment has no Cargo or Visual Studio C++ Build Tools, so the installer cannot be built here. GitHub Actions completed the Windows installer build and packaged-sidecar smoke test successfully.
+- The local Windows environment has no Cargo or Visual Studio C++ Build Tools, so the installer cannot be built here. GitHub Actions run 39636758240 completed successfully for published revision `9f82c73794337fbfe36823ed5bdbbaf154eababa`: backend Python 3.10/3.12, frontend, Windows installer, and packaged-sidecar smoke all passed.
 - The Node 24 action update and Ubuntu 24.04 pin passed in [GitHub Actions run 39628458556](https://github.com/gr33nmars-hub/repo/actions/runs/39628458556). The latest code and workflow passed all jobs, including Windows packaging and sidecar smoke, in [run 39629304074](https://github.com/gr33nmars-hub/repo/actions/runs/39629304074).
-- The documentation-only run for `2a0ea26` was still `In progress` when checked on 2026-10-21; frontend and both backend matrix jobs were complete, while the Windows job had no terminal result in the public run summary: [run 39630456080](https://github.com/gr33nmars-hub/repo/actions/runs/39630456080).
 - The backend suite emits one upstream deprecation warning from Starlette/AnyIO while importing `TestClient`; there are no project test failures.
 
 ## Public repository
 
 - The GitHub repository is public and advertises the MIT license. Its README describes the virtual-chip scope, stack, Windows setup, checks, and fairness model.
-- GitHub's About section has no short description or topics yet. Add those when preparing the clean repository reupload; this is presentation metadata, not a source-code blocker.
+- GitHub's About section has no description or topics. The owner chose to leave it unchanged.
 
 ## Checks run
 
@@ -55,5 +54,6 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 - In a fresh copy of the current source (161 files including the audit/plan; initially no `.git`, `.venv`, Python caches, `node_modules`, or prebuilt sidecar), `uv sync --all-groups` under Python 3.10.21 succeeded and backend pytest reported 371 passed, with one upstream Starlette/AnyIO warning.
 - The same clean copy passed Ruff check/format and mypy for Python 3.10 with both `linux` and `win32` targets.
 - From the clean copy's `frontend/`, `npm ci` passed with 0 reported vulnerabilities; unit tests reported 15 passed; lint, Vite build, Python 3.10 PyInstaller `build:desktop`, and packaged sidecar smoke passed.
-- Full `tauri:build` was not run because Cargo and the MSVC `cl` compiler are unavailable locally. Hosted CI results are for earlier commits and must be rerun after publishing the final source revision.
+- Full `tauri:build` was not run locally because Cargo and the MSVC `cl` compiler are unavailable; the hosted Windows job built the installer successfully for published revision `9f82c73`.
 - [GitHub Actions run 39629304074](https://github.com/gr33nmars-hub/repo/actions/runs/39629304074) for `f5f72a1` — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded with the updated action runtimes and Ubuntu 24.04 runners.
+- [GitHub Actions run 39636758240](https://github.com/gr33nmars-hub/repo/actions/runs/39636758240) for `9f82c73` — all four jobs passed, including the Windows Tauri installer and packaged-sidecar smoke test.

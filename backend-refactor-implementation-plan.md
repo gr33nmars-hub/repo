@@ -2,7 +2,7 @@
 
 ## Цель
 
-Довести проверенный локальный рефакторинг backend до готового состояния для повторной загрузки владельцем в чистый Git-репозиторий. Целевая оболочка — Tauri v2.
+Завершить проверенный рефакторинг backend и подготовить NOIR Casino Club к открытой разработке на GitHub. Целевая оболочка — Tauri v2.
 
 ## План
 
@@ -15,13 +15,14 @@
 - [x] **Локальный backend gate:** текущий рабочий tree прошёл `pytest` (371 passed, один upstream warning), Ruff check/format и mypy для Python 3.10 на Linux/Windows.
 - [x] **Clean-copy прогон после атомарного refresh:** свежая копия 161 исходного и документационного файла, без `.git`, `.venv`, кэшей, `node_modules` и собранных артефактов. В ней на Python 3.10.21 прошли `uv sync --all-groups`, backend (371 passed), Ruff, mypy для Python 3.10/Linux и Windows, `npm ci` (0 vulnerabilities), frontend unit (15 passed), lint/build, PyInstaller `build:desktop` и sidecar smoke (auth, settlement, persistence, idempotent retry across restart, shutdown).
 - [x] **Проверка состава публикации:** у Git нет отслеживаемых `.env`/секретных файлов, SQLite-профилей, EXE/DLL, `.pyc`, `node_modules`, venv или сборочных каталогов; `.gitignore` исключает локальные данные и артефакты. Clean-copy собрана из отслеживаемых файлов и единственного нужного untracked плана.
-- [ ] **Опубликовать проверенный исходник:** включить аудит и план в проект, сохранить существующую историю, отправить обычный commit в `main` с настроенным прозрачным авторством. После push проверить, что на GitHub присутствуют исходники, lock-файлы, лицензия и CI workflow, а `.venv`, кэши, сборки и секреты не отслеживаются.
-- [ ] **CI на точной новой ревизии:** дождаться всех backend matrix jobs, frontend и Windows Tauri installer/sidecar smoke. Текущие hosted CI результаты относятся к более раннему исходнику; локальная полная Tauri-сборка недоступна без Cargo и MSVC `cl`.
-- [ ] **GitHub About и приёмка:** в выбранном чистом репозитории заполнить описание `Local desktop casino simulator with blackjack, European roulette, and 3×3 slots using virtual chips only` и topics `casino-simulator`, `blackjack`, `roulette`, `slots`, `provably-fair`, `tauri`, `fastapi`, `react`, `sqlite`; затем сверить план и аудит с точным загруженным commit. Starlette/AnyIO `BlockingPortal` warning можно оставить upstream-предупреждением; зависимость обновлять только отдельным изменением с полным прогоном backend.
+- [x] **Публикация:** аудит и план включены; проверенный исходник отправлен обычным commit в `main`, без переписывания истории. Текущая ревизия — `9f82c73794337fbfe36823ed5bdbbaf154eababa`. GitHub показывает README, исходники, lock-файлы, MIT License и CI workflow; проверка inventory не нашла отслеживаемых секретов или локальных артефактов.
+- [x] **CI на опубликованной ревизии:** все jobs для `9f82c73794337fbfe36823ed5bdbbaf154eababa` прошли: backend Python 3.10/3.12, frontend, Windows Tauri build и packaged-sidecar smoke в [run 39636758240](https://github.com/gr33nmars-hub/repo/actions/runs/39636758240). Локальная полная Tauri-сборка недоступна без Cargo и MSVC `cl`.
+- [x] **GitHub About:** владелец решил оставить пустое описание и topics без изменений.
+- [x] **Приёмка документации:** README, аудит и план сверены с опубликованной ревизией `9f82c73`. Starlette/AnyIO `BlockingPortal` warning остаётся единственным backend предупреждением; зависимость не обновлялась.
 
 ## Готово, когда
 
-Проверенный исходник опубликован без переписывания существующей истории; exact revision проходит hosted CI, включая Windows installer и sidecar; About заполнен; аудит отражает фактически проверенную ревизию.
+Проверенный исходник опубликован без переписывания существующей истории; exact revision проходит hosted CI, включая Windows installer и sidecar; аудит отражает фактически проверенную ревизию. GitHub About оставлен без изменений по решению владельца.
 
 ## Границы
 

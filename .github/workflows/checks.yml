@@ -30,7 +30,23 @@ jobs:
           uv run --directory backend --group quality ruff check casino tests run_api.py
           uv run --directory backend --group quality ruff format --check casino tests run_api.py
       - name: Backend types
-        run: uv run --directory backend --group quality mypy --python-version 3.10 casino run_api.py
+        shell: bash
+        run: |
+          set +e
+          output="$(uv run --directory backend --group quality mypy --show-error-codes --python-version 3.10 casino run_api.py 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do
+              if [[ "$line" == *": error:"* ]]; then
+                line="${line//'%'/'%25'}"
+                line="${line//$'\r'/'%0D'}"
+                line="${line//$'\n'/'%0A'}"
+                printf '::error::%s\n' "$line"
+              fi
+            done <<< "$output"
+          fi
+          exit "$status"
 
   frontend:
     runs-on: ubuntu-latest
@@ -72,7 +88,23 @@ jobs:
         run: npm ci
       - name: Build Tauri desktop app
         working-directory: frontend
-        run: npm run tauri:build
+        shell: bash
+        run: |
+          set +e
+          output="$(npm run tauri:build 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do
+              if [[ "$line" =~ (error|Error|failed|Failed) ]]; then
+                line="${line//'%'/'%25'}"
+                line="${line//$'\r'/'%0D'}"
+                line="${line//$'\n'/'%0A'}"
+                printf '::error::%s\n' "$line"
+              fi
+            done <<< "$output"
+          fi
+          exit "$status"
       - name: Smoke-test packaged API sidecar
         working-directory: frontend
         run: npm run smoke:sidecar

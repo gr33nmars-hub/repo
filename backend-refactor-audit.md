@@ -36,4 +36,4 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 - `npm run lint` and `npm run build` — passed.
 - `npm run build:desktop` and `npm run smoke:sidecar` — passed on Windows.
 - `npm run tauri:build` — not available locally because Cargo and Visual Studio C++ Build Tools are missing.
-- [GitHub Actions run 39613560765](https://github.com/gr33nmars-hub/repo/actions/runs/39613560765) for `587129e` — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded.
+- [GitHub Actions run 39625137964](https://github.com/gr33nmars-hub/repo/actions/runs/39625137964) for `8b8d199` — backend Python 3.10/3.12, frontend, Windows installer, and sidecar smoke-test jobs succeeded.

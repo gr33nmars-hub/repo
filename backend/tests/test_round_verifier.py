@@ -62,6 +62,10 @@ def test_slot_history_verifies_against_its_saved_rules_after_catalog_changes() -
     assert changed_catalog.snapshot() != serialized["rules_snapshot"]
     assert verify_recorded_round(serialized)
 
+    for nonce in (True, 0.0):
+        tampered_proof = {**serialized, "fairness": {**serialized["fairness"], "nonce": nonce}}
+        assert not verify_recorded_round(tampered_proof)
+
     tampered = {**serialized, "payout": serialized["payout"] + 1}
     tampered["profit"] += 1
     assert not verify_recorded_round(tampered)

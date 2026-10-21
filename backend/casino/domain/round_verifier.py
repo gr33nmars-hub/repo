@@ -71,7 +71,8 @@ def _verify_slots(
         or len(proof["server_seed"]) != 64
         or any(char not in "0123456789abcdef" for char in proof["server_seed"])
         or type(proof.get("client_seed")) is not str
-        or proof.get("nonce") != 0
+        or type(proof.get("nonce")) is not int
+        or proof["nonce"] != 0
         or proof.get("server_seed_hash") != _seed_hash(proof["server_seed"])
         or type(reels) is not list
         or len(reels) != 3

@@ -41,10 +41,6 @@ function roundSymbols(round: RoundResult | null): string[] | undefined {
   return parsed.length === 3 ? parsed : undefined
 }
 
-function displayRoundMessage(message: string) {
-  return message.replace('Тройка 7️⃣', 'Тройка 777')
-}
-
 function Reel({ strip, position, moving }: { strip: string[]; position: number; moving: boolean }) {
   const base = Math.floor(position)
   return <div className={`slots-reel-window${moving ? ' is-moving' : ''}`}>
@@ -194,8 +190,8 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
 
   const paytable = game.paytable ?? []
   if (!strips) return <section className="game-unavailable" role="status">
-    <h1>Конфигурация барабанов недоступна</h1>
-    <p>Сервер не передал правила этого стола. Обнови состояние перед игрой.</p>
+    <h1>Барабаны недоступны</h1>
+    <p>Не удалось загрузить правила слотов. Обнови игру и попробуй снова.</p>
   </section>
 
   const status = blocked
@@ -209,7 +205,7 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
       <header className="game-page-heading slots-heading">
         <div>
           <h1>Слоты</h1>
-          <p>Выигрыш определяется по центральной линии.</p>
+          <p>Комбинация считается по центральной линии.</p>
         </div>
       </header>
 
@@ -226,12 +222,12 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
 
           <div className="slots-machine-status" role="status" aria-live="polite">
             <span className="slots-status-light" aria-hidden="true" />
-            <div><strong>{status}</strong>{result && <span>{displayRoundMessage(result.message)}</span>}</div>
+            <div><strong>{status}</strong>{result && <span>{result.message}</span>}</div>
           </div>
         </section>
 
         <aside className="slots-console" aria-label="Управление автоматом">
-          <div className="slots-console-balance"><span>На счету</span><strong>{balance.toLocaleString('ru-RU')} <small>фишек</small></strong></div>
+          <div className="slots-console-balance"><span>Баланс</span><strong>{balance.toLocaleString('ru-RU')} <small>фишек</small></strong></div>
           <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || requesting || spinning} disabled={blocked} actionLabel="Крутить барабаны" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
           <div className="slots-console-divider" />
           <div className={`slots-last-round${result?.profit && result.profit > 0 ? ' is-positive' : ''}`}>
@@ -239,7 +235,7 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
             {result ? <>
               <div><span>Выплата</span><strong>{result.payout.toLocaleString('ru-RU')}</strong></div>
               <div><span>Чистый итог</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
-            </> : <p>Здесь появится итог после первого вращения.</p>}
+            </> : <p>Итог появится после первого вращения.</p>}
           </div>
           <p className="slots-console-hint">Выплата определяется таблицей сочетаний.</p>
         </aside>

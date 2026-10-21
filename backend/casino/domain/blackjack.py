@@ -174,12 +174,10 @@ class Blackjack:
     def validate_bet(self, bet: int) -> None:
         self.rules.validate_bet(bet)
         if bet % 2:
-            raise InvalidCasinoCommand(
-                "Для точной натуральной выплаты 3:2 ставка в блэкджеке должна быть чётной"
-            )
+            raise InvalidCasinoCommand("Для выплаты 3:2 ставка в блэкджеке должна быть чётной.")
         if bet % self.blackjack_rules.natural_denominator:
             raise InvalidCasinoCommand(
-                "Ставка должна точно делиться для выплат блэкджека и страховки"
+                "Выбери ставку, при которой выплаты за блэкджек и страховку будут целыми."
             )
 
     def snapshot(self) -> BlackjackSnapshot:
@@ -304,7 +302,7 @@ class Blackjack:
     ) -> BlackjackRound:
         self.validate_bet(bet)
         if self._hand and self._hand.status in {"playing", "insurance"}:
-            raise InvalidCasinoCommand("Сначала закончи текущую раздачу")
+            raise InvalidCasinoCommand("Заверши текущую раздачу, прежде чем начинать новую.")
         # Committed rounds use a reproducible shoe whose draw order can be verified.
         if server_seed is not None:
             self._new_shoe(server_seed, client_seed, nonce)
@@ -353,7 +351,7 @@ class Blackjack:
         if dealer_natural:
             round_.insurance_payout = round_.insurance_bet * 3
             round_.hands[0].status = "push" if player_natural else "lost"
-            round_.hands[0].message = "Оба имеют блэкджек" if player_natural else "Блэкджек дилера"
+            round_.hands[0].message = "У обоих блэкджек" if player_natural else "Блэкджек дилера"
             payout = self._payout(round_)
             round_.status = (
                 "won" if payout > round_.bet else "lost" if payout < round_.bet else "push"
@@ -418,7 +416,9 @@ class Blackjack:
             "split",
             "surrender",
         }:
-            raise InvalidCasinoCommand("Это действие сейчас недоступно")
+            raise InvalidCasinoCommand(
+                "Действие недоступно в этой раздаче. Обнови стол и следуй подсказкам на экране."
+            )
         return round_, round_.hands[round_.active_hand_index]
 
     def _advance(self) -> None:
@@ -438,7 +438,7 @@ class Blackjack:
                 next_hand._draw(self._draw_for(f"hand:{next_index}"))
             if self.score(next_hand.cards) == 21:
                 next_hand.status = "standing"
-                next_hand.message = "21 после разделения · выплата как за обычную руку"
+                next_hand.message = "После разделения 21 считается обычной победой"
                 self._advance()
                 return
             round_.message = f"Рука {next_index + 1}: твой ход"
@@ -454,7 +454,7 @@ class Blackjack:
             self._advance()
         elif score == 21:
             current.status = "standing"
-            current.message = "21 · рука остановлена"
+            current.message = "21 очко · ход завершён"
             self._advance()
         return round_
 
@@ -471,7 +471,9 @@ class Blackjack:
         current._draw(self._draw_for(f"hand:{round_.active_hand_index}"))
         current.status = "bust" if self.score(current.cards) > 21 else "standing"
         current.message = (
-            "Перебор после удвоения" if current.status == "bust" else "Удвоение · одна карта"
+            "Перебор после удвоения"
+            if current.status == "bust"
+            else "Ставка удвоена · выдана одна карта"
         )
         self._advance()
         return round_
@@ -497,11 +499,11 @@ class Blackjack:
         current._draw(self._draw_for(f"hand:{index}"))
         if self.score(current.cards) == 21:
             current.status = "standing"
-            current.message = "21 после разделения · выплата как за обычную руку"
+            current.message = "После разделения 21 считается обычной победой"
         if ace:
             new._draw(self._draw_for(f"hand:{index + 1}"))
             current.status = new.status = "standing"
-            current.message = new.message = "После разделения тузов выдана одна карта"
+            current.message = new.message = "После разделения тузов к каждой руке выдана одна карта"
             self._advance()
         elif current.status == "standing":
             self._advance()
@@ -509,7 +511,7 @@ class Blackjack:
 
     def _surrender(self) -> BlackjackRound:
         round_, current = self._current("surrender")
-        current.status, current.message = "surrendered", "Сдача · возвращена половина ставки"
+        current.status, current.message = "surrendered", "Ты сдался · половина ставки вернулась"
         self._advance()
         return round_
 
@@ -517,7 +519,9 @@ class Blackjack:
         if type(balance) is not int or balance < 0:
             raise InvalidCasinoCommand("Баланс должен быть неотрицательным целым числом")
         if action not in self.available_actions(balance):
-            raise InvalidCasinoCommand("Это действие сейчас недоступно")
+            raise InvalidCasinoCommand(
+                "Действие недоступно в этой раздаче. Обнови стол и следуй подсказкам на экране."
+            )
         assert self._hand is not None
         round_ = self._require_round("insurance" if self._hand.status == "insurance" else "playing")
         hand = round_.hands[round_.active_hand_index]

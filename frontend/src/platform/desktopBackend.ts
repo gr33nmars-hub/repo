@@ -55,7 +55,7 @@ async function waitForBackend(): Promise<void> {
     }
     await new Promise((resolve) => window.setTimeout(resolve, 250))
   }
-  throw new Error('Не удалось подключиться к локальному API. Перезапусти приложение.')
+  throw new Error('Локальный сервер не запустился. Перезапусти приложение.')
 }
 
 export function prepareBackend(): Promise<void> {

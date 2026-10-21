@@ -17,13 +17,13 @@ interface Props {
 const fmt = (value: number) => value.toLocaleString('ru-RU')
 const actionLabels: { action: BlackjackAction; title: string; hint: string; symbol: string; key: string }[] = [
   { action: 'hit', title: 'Взять карту', hint: 'Продолжить руку', symbol: '+', key: '1' },
-  { action: 'stand', title: 'Хватит', hint: 'Ход дилера', symbol: '■', key: '2' },
+  { action: 'stand', title: 'Остановиться', hint: 'Ход дилера', symbol: '■', key: '2' },
   { action: 'double', title: 'Удвоить', hint: 'Ещё одна карта', symbol: '×2', key: '3' },
   { action: 'split', title: 'Разделить', hint: 'Играть две руки', symbol: '↔', key: '4' },
-  { action: 'surrender', title: 'Сдаться', hint: 'Вернуть половину', symbol: '½', key: '5' },
+  { action: 'surrender', title: 'Сдаться', hint: 'Вернётся половина ставки', symbol: '½', key: '5' },
 ]
 const handStatus: Record<string, string> = {
-  playing: 'Твой ход', standing: 'Ожидает дилера', won: 'Победа', lost: 'Проигрыш',
+  playing: 'Твой ход', standing: 'Ждёт дилера', won: 'Победа', lost: 'Проигрыш',
   push: 'Ничья', bust: 'Перебор', surrendered: 'Сдача', blackjack: 'Блэкджек',
 }
 const ratioOr = (value: unknown, fallback: string) => typeof value === 'string' && /^\d+:\d+$/.test(value) ? value : fallback
@@ -84,9 +84,9 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
   const ruleData = round?.rules
   const dealerSoft17Rule = ruleData?.dealer_soft_17
   const tableRules = {
-    dealerSoft17: dealerSoft17Rule === 'hit' || dealerSoft17Rule === 'stand' ? dealerSoft17Rule : null,
-    blackjackPayout: ratioOr(ruleData?.blackjack_payout, ''),
-    insurancePayout: ratioOr(ruleData?.insurance_payout, ''),
+    dealerSoft17: dealerSoft17Rule === 'hit' || dealerSoft17Rule === 'stand' ? dealerSoft17Rule : 'stand',
+    blackjackPayout: ratioOr(ruleData?.blackjack_payout, '3:2'),
+    insurancePayout: ratioOr(ruleData?.insurance_payout, '2:1'),
   }
 
   return <div className="blackjack-page">
@@ -104,7 +104,7 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
             {round ? round.dealer_cards.map((card, index) => <PlayingCard key={`dealer-${index}-${card}`} card={card} animate order={index} />) : <div className="blackjack-empty-cards"><span>♠</span><small>Дилер ждёт ставку</small></div>}
           </div>
         </div>
-        <div className="blackjack-table-rules"><strong>БЛЭКДЖЕК · {tableRules.blackjackPayout || '—'}</strong><span>{tableRules.dealerSoft17 === 'hit' ? 'ДИЛЕР БЕРЁТ МЯГКИЕ 17' : tableRules.dealerSoft17 === 'stand' ? 'ДИЛЕР СТОИТ НА ЛЮБЫХ 17' : 'ПРАВИЛО МЯГКОЙ 17 НЕ ПОЛУЧЕНО'}</span></div>
+        <div className="blackjack-table-rules"><strong>БЛЭКДЖЕК · {tableRules.blackjackPayout}</strong><span>{tableRules.dealerSoft17 === 'hit' ? 'ДИЛЕР БЕРЁТ МЯГКИЕ 17' : 'ДИЛЕР ОСТАНАВЛИВАЕТСЯ НА 17'}</span></div>
         <div className={`blackjack-player-area${hands.length > 1 ? ' has-split' : ''}`} role="group" aria-label="Руки игрока">
           {hands.length ? hands.map((hand, index) => {
             const current = round?.status === 'playing' && index === activeIndex
@@ -120,7 +120,7 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
       <aside className={`blackjack-console${inRound ? ' is-playing' : ''}`} aria-label="Игровые действия">
         {inRound ? <div className="blackjack-console-summary">
           <h2>{insurance ? 'Страховка?' : `Рука ${activeIndex + 1} · ${active?.score ?? round?.player_score} очков`}</h2>
-          {insurance && <p className="blackjack-console-hint">У дилера туз. Страховка стоит половину ставки и платит {tableRules.insurancePayout || '—'} при блэкджеке дилера.</p>}
+          {insurance && <p className="blackjack-console-hint">У дилера туз. Страховка стоит половину ставки и платит {tableRules.insurancePayout} при блэкджеке дилера.</p>}
           <div className="blackjack-stake-ledger"><span>Ставка</span><strong>{fmt(hands.reduce((total, hand) => total + hand.bet, 0) + (round.insurance_bet ?? 0))}</strong><small>фишек{(round.insurance_bet ?? 0) > 0 ? ' · включая страховку' : ''}</small></div>
         </div> : <div className="blackjack-console-summary">
           <h2>{round ? 'Следующий раунд' : 'Ставка'}</h2>

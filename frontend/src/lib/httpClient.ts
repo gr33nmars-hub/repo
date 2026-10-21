@@ -32,7 +32,7 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
       const decoded = await decodeApiResponse(response)
       if (decoded.kind === 'invalid-json') {
         throw new CasinoApiError(
-          `Сервер вернул некорректный ответ (HTTP ${response.status})`,
+          `Сервер вернул некорректный ответ (HTTP ${response.status}). Обнови игру и попробуй снова.`,
           response.status,
           undefined,
           'invalid_response',

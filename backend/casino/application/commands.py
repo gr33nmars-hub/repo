@@ -133,9 +133,9 @@ def play_game(
         service._validate_bet(game, bet)
         previous_seed = service._server_seed
         stale_message = (
-            "Seed для барабанов изменился. Состояние обновлено; проверь стол."
+            "Seed для барабанов изменился. Стол обновлён. Проверь ставку и повтори вращение."
             if game_id == "slots"
-            else "Seed игры изменился. Состояние обновлено; проверь стол."
+            else "Seed игры изменился. Стол обновлён. Проверь ставку и попробуй снова."
         )
         _ensure_current_seed(expected_server_seed_hash, previous_seed, stale_message)
         actual_client_seed = _client_seed(client_seed, request_key)
@@ -217,7 +217,7 @@ def start_blackjack(
         _ensure_current_seed(
             expected_server_seed_hash,
             previous_seed,
-            "Seed игры изменился. Состояние обновлено; проверь стол.",
+            "Seed игры изменился. Стол обновлён. Проверь ставку и попробуй снова.",
         )
         actual_client_seed = _client_seed(client_seed, request_key)
         proof = _fairness_proof(previous_seed, actual_client_seed)
@@ -293,10 +293,12 @@ def refill(service: CasinoCommandContext, request_key: str) -> int:
         if cached is not None:
             return int(cached["balance"])
         if service.blackjack.hand and service.blackjack.hand.status in {"playing", "insurance"}:
-            raise InvalidCasinoCommand("Пополнение доступно после завершения текущей раздачи")
+            raise InvalidCasinoCommand(
+                "Пополнение доступно после завершения текущей раздачи. Закончи её и попробуй снова."
+            )
         if service.player.balance >= service.blackjack.minimum_bet:
             raise InvalidCasinoCommand(
-                "Пополнение станет доступно, когда не хватит на минимальную ставку"
+                "Пополнение откроется, когда на балансе будет меньше минимальной ставки."
             )
         service.player.credit(service.REFILL_AMOUNT)
         unit_of_work.save(

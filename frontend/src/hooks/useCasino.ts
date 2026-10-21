@@ -25,7 +25,7 @@ export function useCasino() {
         ? 'Есть запрос без подтверждённого результата. Повтори его, чтобы уточнить исход.'
         : null)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось загрузить казино')
+      setError(caught instanceof Error ? caught.message : 'Не удалось загрузить игру.')
     }
   }, [])
 
@@ -97,7 +97,7 @@ export function useCasino() {
     } catch (caught) {
       handleMutationFailure(
         caught,
-        'Раунд не запустился',
+        'Не удалось начать раунд.',
         async () => { await runGame(game, bet, choice, expectedServerSeedHash) },
       )
       return null
@@ -150,7 +150,7 @@ export function useCasino() {
           setState(reconciled)
           retryError = 'Состояние обновлено. Проверь игру и повтори действие при необходимости.'
         } else {
-          retryError = caught instanceof Error ? caught.message : 'Не удалось повторить запрос'
+          retryError = caught instanceof Error ? caught.message : 'Не удалось повторить запрос.'
         }
       }
       await refresh()

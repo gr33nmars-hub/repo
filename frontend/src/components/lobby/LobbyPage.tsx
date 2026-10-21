@@ -13,17 +13,17 @@ const gameDetails: Record<GameId, {
 }> = {
   blackjack: {
     description: 'Карты против дилера',
-    experience: 'Набери 21 очко, не превысив.',
+    experience: 'Набери больше очков, чем дилер, не переходя за 21.',
     image: blackjackImage,
   },
   roulette: {
     description: 'Европейское колесо 0–36',
-    experience: 'Ставь на красное, чёрное или зеро.',
+    experience: 'Выбери красное, чёрное или зеро.',
     image: rouletteImage,
   },
   slots: {
     description: 'Три барабана',
-    experience: 'Собери выигрышную комбинацию.',
+    experience: 'Собери пару или три одинаковых символа.',
     image: slotsImage,
   },
 }
@@ -50,7 +50,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
     <div className="lobby-page">
       <header className="lobby-heading">
         <h1>Лобби</h1>
-        <p>Три зала. Одна атмосфера.</p>
+        <p>Блэкджек, рулетка и слоты на виртуальные фишки.</p>
       </header>
 
       {orderedGames.length ? (
@@ -78,7 +78,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
                       : `${game.minimum_bet.toLocaleString('ru-RU')} – ${game.maximum_bet.toLocaleString('ru-RU')}`}</strong>
                     {game.maximum_bet === undefined && <small>Без верхнего лимита</small>}
                   </span>
-                  <span className="table-entry-action">Войти<Icon name="arrow" /></span>
+                  <span className="table-entry-action">Играть<Icon name="arrow" /></span>
                 </span>
               </button>
             ) : null
@@ -87,7 +87,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
       ) : (
         <div className="lobby-empty lobby-empty--tables" role="status">
           <strong>Столы не загрузились</strong>
-          <button type="button" onClick={onRetry}>Повторить</button>
+          <button type="button" onClick={onRetry}>Загрузить столы снова</button>
         </div>
       )}
 

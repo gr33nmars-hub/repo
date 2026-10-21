@@ -207,7 +207,7 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
         </div>
 
         <div className="roulette-betting">
-          <div className="roulette-betting-head"><h2>Куда ставим?</h2><p>Выбери поле и запусти колесо. Выплата указана с учётом ставки.</p></div>
+          <div className="roulette-betting-head"><h2>Исход ставки</h2><p>Выбери цвет или зеро. В выплату уже входит ставка.</p></div>
           <div className="roulette-choice-list" role="group" aria-label="Исход ставки">
             {choices.map((option) => (
               <button className={`roulette-choice roulette-choice--${option.id}${choice === option.id ? ' is-selected' : ''}`} type="button" key={option.id} aria-pressed={choice === option.id} disabled={busy || blocked || spinning} onClick={() => onChoice(option.id)}>
@@ -225,10 +225,10 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
         {result ? (
           <section className={`roulette-result roulette-result--${color}${result.profit > 0 ? ' is-positive' : ''}`}>
             <span className="roulette-result-number">{number ?? '—'}</span>
-            <div className="roulette-result-copy"><span>ПОСЛЕДНИЙ СПИН</span><strong>{result.message}</strong><small>{result.details}</small></div>
+            <div className="roulette-result-copy"><span>ПОСЛЕДНИЙ РАУНД</span><strong>{result.message}</strong><small>{result.details}</small></div>
             <div className="roulette-result-money"><span>Выплата {result.payout.toLocaleString('ru-RU')}</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
           </section>
-        ) : <div className="roulette-ready" role="status"><span className={`roulette-ready-light${spinning ? ' is-active' : ''}`} />{blocked ? 'Стол закрыт, пока идёт раздача блэкджека.' : spinning ? 'Шарик в игре. Ждём сектор…' : 'Стол открыт. Сделай ставку.'}</div>}
+        ) : <div className="roulette-ready" role="status"><span className={`roulette-ready-light${spinning ? ' is-active' : ''}`} />{blocked ? 'Рулетка будет доступна после раздачи блэкджека.' : spinning ? 'Шарик вращается…' : 'Выбери исход и укажи ставку.'}</div>}
       </div>
 
       <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} disabled={blocked} actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />

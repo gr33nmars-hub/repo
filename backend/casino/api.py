@@ -86,21 +86,20 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
             ):
                 return JSONResponse(
                     status_code=401,
-                    content={"code": "unauthorized", "detail": "Unauthorized"},
+                    content={
+                        "code": "unauthorized",
+                        "detail": "Локальный запрос не прошёл проверку доступа. Перезапусти приложение.",
+                    },
                 )
         return await call_next(request)
 
     @application.exception_handler(RequestValidationError)
     async def request_validation_error(_: Request, error: RequestValidationError) -> JSONResponse:
-        problems = "; ".join(
-            f"{'.'.join(str(part) for part in item['loc'] if part != 'body')}: {item['msg']}"
-            for item in error.errors()
-        )
         return JSONResponse(
             status_code=422,
             content={
                 "code": "invalid_request",
-                "detail": f"Некорректный запрос: {problems}",
+                "detail": "Запрос составлен неверно. Обнови игру и попробуй снова.",
             },
         )
 
@@ -117,7 +116,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         if request.app.state.api_token is None or callback is None:
             return JSONResponse(
                 status_code=404,
-                content={"code": "not_found", "detail": "Not found"},
+                content={"code": "not_found", "detail": "Команда недоступна."},
             )
         callback()
         return {"status": "shutting_down"}

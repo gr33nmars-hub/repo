@@ -45,7 +45,6 @@ export function Sidebar({ room, player, balanceHeld, isBusy, canRefill, onNaviga
           </button>
         ))}
 
-        <span className="sidebar-nav-heading sidebar-nav-heading--secondary">ЗАПИСИ</span>
         <button
           className={`sidebar-nav-item${room === 'history' ? ' is-current' : ''}`}
           type="button"

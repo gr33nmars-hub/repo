@@ -77,7 +77,9 @@ class CasinoService:
     def _validate_bet(self, game: CasinoGame | Blackjack, bet: int) -> None:
         game.validate_bet(bet)
         if bet > self.player.balance:
-            raise InvalidCasinoCommand("На балансе недостаточно фишек для этой ставки")
+            raise InvalidCasinoCommand(
+                "На балансе не хватает фишек для этой ставки. Уменьши её или пополни баланс."
+            )
 
     def _cached_request(
         self, request_key: str, signature: str, unit_of_work: CasinoReadUnitOfWork

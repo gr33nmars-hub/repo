@@ -42,7 +42,7 @@ class GameRules:
     def validate_bet(self, bet: int) -> None:
         if type(bet) is not int or not self.minimum_bet <= bet <= self.maximum_bet:
             raise InvalidCasinoCommand(
-                f"Ставка должна быть от {self.minimum_bet} до {self.maximum_bet} фишек"
+                f"Выбери ставку от {self.minimum_bet} до {self.maximum_bet} фишек"
             )
 
 

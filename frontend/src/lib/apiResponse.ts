@@ -18,7 +18,7 @@ export async function decodeApiResponse(response: Response): Promise<DecodedApiR
     return {
       kind: 'http-error',
       status: response.status,
-      message: typeof record.detail === 'string' ? record.detail : `Запрос не прошёл (HTTP ${response.status})`,
+      message: typeof record.detail === 'string' ? record.detail : `Ошибка запроса (HTTP ${response.status})`,
       code: typeof record.code === 'string' ? record.code : undefined,
     }
   }

@@ -33,7 +33,8 @@ function App() {
 
   const unavailablePage = (
     <section className="game-unavailable" role="status">
-      <h1>Стол недоступен</h1>
+      <h1>Не удалось загрузить стол</h1>
+      <p>Обнови игру и попробуй снова.</p>
       <button className="game-action-secondary" type="button" onClick={() => void casino.refresh()}>
         Повторить
       </button>
@@ -123,15 +124,15 @@ function App() {
     <AppShell room={room} player={state ? { ...state.player, balance: shownBalance } : null} balanceHeld={room === 'slots' && slotHeldBalance !== null} isConnected={Boolean(state)} isBusy={casino.busy || slotHeldBalance !== null} canRefill={Boolean(state && slotHeldBalance === null && refillMinimum > 0 && state.player.balance < refillMinimum)} error={room === 'history' && !state ? null : casino.error} retryAvailable={casino.retryAvailable} onNavigate={setRoom} onRetry={() => void casino.retry()} onRefill={() => void casino.refill()}>
       {gamePage ?? (casino.error ? (
         <section className="lobby-empty lobby-empty--connection" aria-live="polite">
-          <h1>Клуб пока закрыт</h1>
-          <p>Проверьте соединение и попробуйте ещё раз.</p>
-          <button type="button" onClick={() => void casino.refresh()}>Повторить</button>
+          <h1>Нет связи с игрой</h1>
+          <p>Проверь подключение и попробуй снова.</p>
+          <button type="button" onClick={() => void casino.refresh()}>Подключиться снова</button>
         </section>
       ) : (
         <section className="app-loading" aria-live="polite" aria-busy="true">
           <span className="app-loading-mark" aria-hidden="true">N</span>
-          <strong>Открываем клуб</strong>
-          <span>Подключаемся…</span>
+          <strong>Запускаем игру</strong>
+          <span>Подключаемся к серверу…</span>
         </section>
       ))}
     </AppShell>

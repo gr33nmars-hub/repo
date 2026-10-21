@@ -18,10 +18,13 @@ env/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.hypothesis/
 .tox/
 .nox/
 .coverage
 htmlcov/
+coverage/
+*.egg-info/
 
 # Bundled app build output
 build/
@@ -38,6 +41,9 @@ frontend/src-tauri/binaries/*.exe
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
+frontend/.turbo/
+frontend/.parcel-cache/
 
 # Runtime artifacts, backups, and lock files
 *.log

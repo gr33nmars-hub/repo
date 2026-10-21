@@ -32,7 +32,7 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
     return <section className="history-state history-state--error" aria-live="polite">
       <h1>История недоступна</h1>
       <p>{error}</p>
-      <button className="game-action-secondary" type="button" onClick={onRetry}><Icon name="retry" />Повторить запрос</button>
+      <button className="game-action-secondary" type="button" onClick={onRetry}><Icon name="retry" />Загрузить историю снова</button>
     </section>
   }
 
@@ -52,9 +52,9 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
               <div className="history-round-main">
                 <strong>{round.game_name}</strong>
                 {round.verification_status && <small className="history-round-verification">
-                  {round.verification_status === 'verified' ? 'Результат проверен'
-                    : round.verification_status === 'legacy-unverified' ? 'Старая запись · без проверки'
-                      : 'Проверка результата не пройдена'}
+                  {round.verification_status === 'verified' ? 'Результат подтверждён'
+                    : round.verification_status === 'legacy-unverified' ? 'Старая запись · результат не проверялся'
+                      : 'Результат не прошёл проверку'}
                 </small>}
                 <span>{round.message}</span>
                 <time dateTime={round.played_at}>{formatDate(round.played_at)}</time>
@@ -72,7 +72,7 @@ export function HistoryPage({ state, loading, error, onRetry, onOpenLobby }: His
       ) : (
         <section className="history-state history-state--empty" aria-live="polite">
           <h2>Завершённых раундов пока нет</h2>
-          <p>Здесь появятся сыгранные раунды.</p>
+          <p>Сыгранные раунды появятся здесь.</p>
           <button className="game-action-secondary" type="button" onClick={onOpenLobby}>Перейти в лобби <Icon name="arrow" /></button>
         </section>
       )}

@@ -123,15 +123,15 @@ class SlotMachine(CasinoGame):
         details = "  ·  ".join(result)
         if result[0] == result[1] == result[2]:
             multiplier = self._payouts[result[0]]
-            display_symbol = {"🍋": "🍌", "7️⃣": "777"}.get(result[0], result[0])
-            payout, message = bet * multiplier, f"Тройка {display_symbol} · выплата ×{multiplier}"
+            display_symbol = {"7️⃣": "семёрки"}.get(result[0], result[0])
+            payout, message = bet * multiplier, f"Три {display_symbol} · выплата ×{multiplier}"
         elif len(set(result)) == 2:
             payout, message = (
                 bet * self.slot_rules.pair_multiplier,
-                "Пара символов · ставка возвращена",
+                "Два одинаковых символа · ставка возвращена",
             )
         else:
-            payout, message = 0, "Комбинация не собрана"
+            payout, message = 0, "Совпадений нет"
         snapshot = self.slot_rules.snapshot()
         outcome = {"symbols": result, "reel_stops": stops}
         return GameResult(
@@ -207,7 +207,11 @@ class Roulette(CasinoGame):
             else self.roulette_rules.color_return_multiplier
         )
         payout = bet * multiplier if choice == color else 0
-        message = "Шарик остановился на твоём секторе" if payout else "Шарик прошёл мимо"
+        message = (
+            f"Выпало {number} ({colors[color]}) · ставка сыграла"
+            if payout
+            else f"Выпало {number} ({colors[color]}) · ставка не сыграла"
+        )
         snapshot = {
             "wheel": list(EUROPEAN_WHEEL),
             "red_numbers": sorted(RED_NUMBERS),

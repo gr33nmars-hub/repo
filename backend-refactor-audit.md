@@ -9,6 +9,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 | High | Blackjack actions could bypass balance checks, and mutable card collections were exposed from round state. | Fixed: `act(action, balance)` is the action entry point; `hand` returns a detached copy; `PlayerHand.cards` and `Shoe` card views are tuples. The engine alone mutates a hand's card list. Tests cover denied double/split, invalid phases, detached state, and immutable card views. |
 | High | Blackjack combined game rules, API catalog projection, and save-version handling; `GameResult` also owned API and persistence dictionaries. | Fixed: state, result, and game-catalog projections live in `application/queries.py`; profile/history encoding and decoding live in `persistence/codecs.py`; blackjack save compatibility lives in `persistence/blackjack_codec.py`. Domain models no longer expose API `catalog_info` or `to_dict`/`from_dict` methods. |
 | High | Same-balance writes needed a different-key race test. | Covered: `test_concurrency.py` races independent services against one SQLite file and checks the wallet, ledger, and idempotency results. Writes begin with `BEGIN IMMEDIATE`. |
+| Medium | Slots and roulette relied on the application service to reject invalid direct bets; float values and out-of-range amounts were not checked by the domain engines. | Fixed: `GameRules.validate_bet` enforces exact integer type and table limits; slots, roulette, and blackjack call it at their domain boundary. The application service delegates the same rule check before checking wallet balance. |
 | Medium | Tests used hand-built ASGI plumbing and inconsistent assertion patterns. | Simplified: backend tests use pytest, and API tests use FastAPI `TestClient` with a fresh database per test. The suite has no `unittest.TestCase` tests. |
 | Medium | The checkout mixed Tauri configuration with a partial PyWebView migration. | Corrected: PyWebView entry points and dependency were removed; Tauri starts the API sidecar in packaged builds and the API/Vite processes during development. Public-facing product metadata now says NOIR Casino Club. |
 | Medium | Repository docs and release metadata named the old product and described stale commands. | Updated: README, product notes, developer notes, frontend instructions, Tauri metadata, and license now match the current project. The existing `.astoria-casino` save directory and app identifier remain stable to preserve local data and upgrade identity. |
@@ -28,7 +29,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Checks run
 
-- `uv run --group test pytest -q` — 345 passed.
+- `uv run --group test pytest -q` — 353 passed.
 - `uv run --directory backend --group quality ruff check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality ruff format --check casino tests run_api.py` — passed.
 - `uv run --group quality mypy --show-error-codes --python-version 3.10 backend/casino backend/run_api.py` — passed for both `linux` and `win32` targets.

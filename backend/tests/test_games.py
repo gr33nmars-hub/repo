@@ -3,6 +3,8 @@ from itertools import product
 
 import pytest
 from casino.application.queries import game_catalog_item, game_result_view
+from casino.domain.core import GameRules
+from casino.domain.errors import InvalidCasinoCommand
 from casino.domain.games import RED_NUMBERS, Roulette, SlotMachine, SlotRules
 
 
@@ -17,6 +19,26 @@ class FixedRandom:
 
     def shuffle(self, x: list) -> None:
         pass
+
+
+@pytest.mark.parametrize("bet", [0, True, 10.0, 1_000_001])
+def test_slots_validate_bets_before_drawing_or_settling(bet: int | float | bool) -> None:
+    game = SlotMachine(rng=FixedRandom([]), rules=GameRules(minimum_bet=1))
+
+    with pytest.raises(InvalidCasinoCommand):
+        game.play(bet)
+    with pytest.raises(InvalidCasinoCommand):
+        game.play_at_stops(bet, [0, 0, 0])
+
+
+@pytest.mark.parametrize("bet", [0, True, 10.0, 1_000_001])
+def test_roulette_validates_bets_before_drawing_or_settling(bet: int | float | bool) -> None:
+    game = Roulette(rng=FixedRandom([]), rules=GameRules(minimum_bet=1))
+
+    with pytest.raises(InvalidCasinoCommand):
+        game.play(bet)
+    with pytest.raises(InvalidCasinoCommand):
+        game.play_at_number(bet, "red", 1)
 
 
 def test_slot_paytable_rtp_matches_exhaustive_reel_outcomes() -> None:

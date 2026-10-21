@@ -104,10 +104,12 @@ class SlotMachine(CasinoGame):
         self._payouts = dict(self.slot_rules.triples)
 
     def play(self, bet: int, choice: str = "") -> GameResult:
+        self.validate_bet(bet)
         stops = [self._rng.choice(range(len(reel))) for reel in self.slot_rules.reels]
         return self.play_at_stops(bet, stops)
 
     def play_at_stops(self, bet: int, stops: list[int]) -> GameResult:
+        self.validate_bet(bet)
         if len(stops) != 3 or any(
             type(stop) is not int or not 0 <= stop < len(reel)
             for reel, stop in zip(self.slot_rules.reels, stops)
@@ -178,6 +180,7 @@ class Roulette(CasinoGame):
         self.roulette_rules = roulette_rules or RouletteRules()
 
     def play(self, bet: int, choice: str = "red") -> GameResult:
+        self.validate_bet(bet)
         if choice not in self.choices:
             raise InvalidCasinoCommand("Выбери красное, чёрное или зеро")
         number = self._rng.choice(EUROPEAN_WHEEL)
@@ -219,4 +222,5 @@ class Roulette(CasinoGame):
 
     def play_at_number(self, bet: int, choice: str, number: int) -> GameResult:
         """Build the ordinary roulette result for a committed wheel pocket."""
+        self.validate_bet(bet)
         return self._result_for_number(bet, choice, number)

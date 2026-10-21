@@ -171,6 +171,17 @@ class Blackjack:
     def minimum_bet(self) -> int:
         return self.rules.minimum_bet
 
+    def validate_bet(self, bet: int) -> None:
+        self.rules.validate_bet(bet)
+        if bet % 2:
+            raise InvalidCasinoCommand(
+                "Для точной натуральной выплаты 3:2 ставка в блэкджеке должна быть чётной"
+            )
+        if bet % self.blackjack_rules.natural_denominator:
+            raise InvalidCasinoCommand(
+                "Ставка должна точно делиться для выплат блэкджека и страховки"
+            )
+
     def snapshot(self) -> BlackjackSnapshot:
         return BlackjackSnapshot(deepcopy(self._hand), self._shoe.copy())
 
@@ -291,15 +302,7 @@ class Blackjack:
         client_seed: str = "",
         nonce: int = 0,
     ) -> BlackjackRound:
-        if (
-            type(bet) is not int
-            or not self.minimum_bet <= bet <= self.rules.maximum_bet
-            or bet % 2
-            or bet % self.blackjack_rules.natural_denominator
-        ):
-            raise InvalidCasinoCommand(
-                "Ставка должна быть в пределах стола и точно делиться для выплат блэкджека и страховки"
-            )
+        self.validate_bet(bet)
         if self._hand and self._hand.status in {"playing", "insurance"}:
             raise InvalidCasinoCommand("Сначала закончи текущую раздачу")
         # Committed rounds use a reproducible shoe whose draw order can be verified.

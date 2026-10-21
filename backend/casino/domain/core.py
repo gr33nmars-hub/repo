@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol, TypeVar
 
+from .errors import InvalidCasinoCommand
 from .models import GameResult
 
 T = TypeVar("T")
@@ -38,6 +39,12 @@ class GameRules:
         ):
             raise ValueError("Invalid bet limits")
 
+    def validate_bet(self, bet: int) -> None:
+        if type(bet) is not int or not self.minimum_bet <= bet <= self.maximum_bet:
+            raise InvalidCasinoCommand(
+                f"Ставка должна быть от {self.minimum_bet} до {self.maximum_bet} фишек"
+            )
+
 
 class CasinoGame(ABC):
     game_id: str
@@ -50,6 +57,9 @@ class CasinoGame(ABC):
     @property
     def minimum_bet(self) -> int:
         return self.rules.minimum_bet
+
+    def validate_bet(self, bet: int) -> None:
+        self.rules.validate_bet(bet)
 
     @abstractmethod
     def play(self, bet: int, choice: str = "") -> GameResult:

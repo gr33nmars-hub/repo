@@ -65,16 +65,9 @@ class CasinoService:
             )
 
     def _validate_bet(self, game: CasinoGame | Blackjack, bet: int) -> None:
-        if not game.minimum_bet <= bet <= game.rules.maximum_bet:
-            raise InvalidCasinoCommand(
-                f"Ставка должна быть от {game.minimum_bet} до {game.rules.maximum_bet} фишек"
-            )
+        game.validate_bet(bet)
         if bet > self.player.balance:
             raise InvalidCasinoCommand("На балансе недостаточно фишек для этой ставки")
-        if game.game_id == "blackjack" and bet % 2:
-            raise InvalidCasinoCommand(
-                "Для точной натуральной выплаты 3:2 ставка в блэкджеке должна быть чётной"
-            )
 
     def _cached_request(
         self, request_key: str, signature: str, unit_of_work: CasinoReadUnitOfWork

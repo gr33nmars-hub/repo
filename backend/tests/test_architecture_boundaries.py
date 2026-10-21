@@ -85,6 +85,22 @@ def test_domain_does_not_depend_on_application_or_adapters() -> None:
     assert violations == []
 
 
+def test_round_verifier_does_not_import_production_fairness_helpers() -> None:
+    forbidden = {
+        "casino.domain.games",
+        "casino.domain.provably_fair",
+        "casino.domain.rule_metadata",
+        "casino.domain.slot_fairness",
+    }
+    violations = [
+        f"{source.relative_to(CASINO_ROOT)} imports {module}"
+        for source, module in imported_modules("domain")
+        if source.name == "round_verifier.py" and module in forbidden
+    ]
+
+    assert violations == []
+
+
 def test_application_does_not_depend_on_transport_or_persistence_adapter() -> None:
     forbidden = (
         "casino.persistence",

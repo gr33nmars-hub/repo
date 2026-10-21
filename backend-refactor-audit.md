@@ -16,7 +16,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 ## Decisions that affect compatibility
 
 - Each committed blackjack round uses a fresh, deterministically shuffled six-deck shoe. A shared shoe across rounds would require a different seed/nonce and save protocol; it is not introduced as a side effect of this refactor.
-- The fairness verifier recalculates results independently of the game payout methods. Keep seed encoding, nonce use, shuffle order, wheel mapping, and reel mapping covered by fixed vectors.
+- The fairness verifier now implements its own proof verification primitives instead of importing production generation helpers. Keep seed encoding, nonce use, shuffle order, wheel mapping, and reel mapping covered by fixed vectors.
 - Provably fair bounded sampling rejects ranges outside the SHA-256 space instead of looping forever.
 - SQLite save migrations remain forward-only and preserve legacy fixtures. The repository makes an integrity-checked backup before migrating a non-empty save.
 - The API token header and save-path environment names retain their Astoria spelling for compatibility. They are internal names, not user-facing product branding.
@@ -29,7 +29,7 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 
 ## Checks run
 
-- `uv run --directory backend --group test pytest -q` — 343 passed.
+- `uv run --directory backend --group test pytest -q` — 344 passed.
 - `uv run --directory backend --group quality ruff check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality ruff format --check casino tests run_api.py` — passed.
 - `uv run --directory backend --group quality mypy --python-version 3.10 casino run_api.py` — passed.
@@ -37,3 +37,4 @@ Updated 2026-10-21 from the current working tree. The audit checks the Python do
 - `npm run lint` and `npm run build` — passed.
 - `npm run build:desktop` and `npm run smoke:sidecar` — passed on Windows.
 - `npm run tauri:build` — not completed because the local Visual Studio C++ toolchain check failed.
+- Latest public GitHub Actions runs failed in backend tests/types and the Windows desktop build. Their job logs are not available anonymously, so the exact hosted-run errors remain unverified; the matching backend suite, Ruff checks, and configured Mypy command pass locally on Windows.

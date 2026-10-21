@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from typing import Any
 
-from .games import RED_NUMBERS
-from .provably_fair import bounded_int
-from .provably_fair import shuffle as fair_shuffle
-from .rule_metadata import validate_rule_metadata
-from .slot_fairness import reel_stops, seed_hash
+_RED_NUMBERS = frozenset({1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36})
 
 
 def verification_status(result: dict[str, Any]) -> str:
@@ -37,12 +36,8 @@ def verify_recorded_round(result: dict[str, Any]) -> bool:
         version = result.get("rule_version")
         snapshot = result.get("rules_snapshot")
         outcome = result.get("outcome")
-        validate_rule_metadata(
-            version,
-            result.get("rules_fingerprint"),
-            snapshot,
-            outcome,
-        )
+        if not _metadata_matches(version, result.get("rules_fingerprint"), snapshot, outcome):
+            return False
         if type(snapshot) is not dict or type(outcome) is not dict:
             return False
         bet, payout = result.get("bet"), result.get("payout")
@@ -77,7 +72,7 @@ def _verify_slots(
         or any(char not in "0123456789abcdef" for char in proof["server_seed"])
         or type(proof.get("client_seed")) is not str
         or proof.get("nonce") != 0
-        or proof.get("server_seed_hash") != seed_hash(proof["server_seed"])
+        or proof.get("server_seed_hash") != _seed_hash(proof["server_seed"])
         or type(reels) is not list
         or len(reels) != 3
         or type(triples) is not list
@@ -99,7 +94,7 @@ def _verify_slots(
         for index, stop in enumerate(stops)
     ):
         return False
-    expected_stops = reel_stops(
+    expected_stops = _reel_stops(
         proof["server_seed"], proof["client_seed"], [len(reel) for reel in reels]
     )
     expected_symbols = [reels[index][stop] for index, stop in enumerate(expected_stops)]
@@ -145,7 +140,7 @@ def _verify_roulette(
         wheel != list(range(37))
         or type(red_numbers) is not list
         or any(type(number) is not int for number in red_numbers)
-        or set(red_numbers) != RED_NUMBERS
+        or set(red_numbers) != _RED_NUMBERS
         or type(number) is not int
         or number not in wheel
         or choice not in {"red", "black", "zero"}
@@ -153,7 +148,7 @@ def _verify_roulette(
         return False
     if proof is not None and not _valid_proof(proof):
         return False
-    if proof is not None and number != bounded_int(
+    if proof is not None and number != _bounded_int(
         proof["server_seed"], proof["client_seed"], proof["nonce"], "roulette", 0, 37
     ):
         return False
@@ -237,7 +232,7 @@ def _verify_blackjack(
             for suit in ("♠", "♥", "♣", "♦")
             for rank in ("A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K")
         ]
-        fair_shuffle(shoe, proof["server_seed"], proof["client_seed"], proof["nonce"])
+        _shuffle(shoe, proof["server_seed"], proof["client_seed"], proof["nonce"])
         if len(draw_order) > len(shoe) or draw_order != shoe[: len(draw_order)]:
             return False
         draw_events = outcome.get("draw_events")
@@ -428,5 +423,81 @@ def _valid_proof(proof: dict[str, Any] | None) -> bool:
         and type(proof.get("client_seed")) is str
         and type(proof.get("nonce")) is int
         and proof["nonce"] >= 0
-        and proof.get("server_seed_hash") == seed_hash(proof["server_seed"])
+        and proof.get("server_seed_hash") == _seed_hash(proof["server_seed"])
     )
+
+
+def _metadata_matches(
+    version: Any,
+    fingerprint: Any,
+    snapshot: Any,
+    outcome: Any,
+) -> bool:
+    if version is fingerprint is snapshot is outcome is None:
+        return True
+    if (
+        type(version) is not str
+        or not version
+        or type(snapshot) is not dict
+        or type(outcome) is not dict
+        or type(fingerprint) is not str
+        or len(fingerprint) != 64
+        or any(character not in "0123456789abcdef" for character in fingerprint)
+    ):
+        return False
+    try:
+        canonical = json.dumps(
+            {"version": version, "rules": snapshot},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        json.dumps(outcome, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError):
+        return False
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest() == fingerprint
+
+
+def _seed_hash(server_seed: str) -> str:
+    return hashlib.sha256(server_seed.encode("utf-8")).hexdigest()
+
+
+def _bounded_int(
+    server_seed: str, client_seed: str, nonce: int, stream: str, index: int, bound: int
+) -> int:
+    space = 1 << 256
+    cutoff = space - space % bound
+    counter = 0
+    while True:
+        message = f"{client_seed}:{nonce}:{stream}:{counter}:{index}".encode()
+        candidate = int.from_bytes(
+            hmac.new(server_seed.encode("utf-8"), message, hashlib.sha256).digest(), "big"
+        )
+        if candidate < cutoff:
+            return candidate % bound
+        counter += 1
+
+
+def _shuffle(values: list[Any], server_seed: str, client_seed: str, nonce: int) -> None:
+    for index in range(len(values) - 1, 0, -1):
+        other = _bounded_int(server_seed, client_seed, nonce, "shuffle", index, index + 1)
+        values[index], values[other] = values[other], values[index]
+
+
+def _reel_stops(server_seed: str, client_seed: str, lengths: list[int]) -> list[int]:
+    stops = []
+    space = 1 << 256
+    key = server_seed.encode("utf-8")
+    for index, length in enumerate(lengths):
+        cutoff = space - space % length
+        prefix = f"{client_seed}:0:{index}:".encode()
+        counter = 0
+        while True:
+            message = prefix + str(counter).encode("ascii")
+            candidate = int.from_bytes(hmac.new(key, message, hashlib.sha256).digest(), "big")
+            if candidate < cutoff:
+                stops.append(candidate % length)
+                break
+            counter += 1
+    return stops

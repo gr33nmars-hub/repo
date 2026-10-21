@@ -110,9 +110,13 @@ class SlotMachine(CasinoGame):
 
     def play_at_stops(self, bet: int, stops: list[int]) -> GameResult:
         self.validate_bet(bet)
-        if len(stops) != 3 or any(
-            type(stop) is not int or not 0 <= stop < len(reel)
-            for reel, stop in zip(self.slot_rules.reels, stops)
+        if (
+            type(stops) is not list
+            or len(stops) != 3
+            or any(
+                type(stop) is not int or not 0 <= stop < len(reel)
+                for reel, stop in zip(self.slot_rules.reels, stops)
+            )
         ):
             raise ValueError("Invalid slot reel stops")
         result = [reel[stop] for reel, stop in zip(self.slot_rules.reels, stops)]
@@ -181,14 +185,18 @@ class Roulette(CasinoGame):
 
     def play(self, bet: int, choice: str = "red") -> GameResult:
         self.validate_bet(bet)
-        if choice not in self.choices:
-            raise InvalidCasinoCommand("Выбери красное, чёрное или зеро")
+        choice = self._validated_choice(choice)
         number = self._rng.choice(EUROPEAN_WHEEL)
         return self._result_for_number(bet, choice, number)
 
-    def _result_for_number(self, bet: int, choice: str, number: int) -> GameResult:
-        if choice not in self.choices:
+    @classmethod
+    def _validated_choice(cls, choice: object) -> str:
+        if type(choice) is not str or choice not in cls.choices:
             raise InvalidCasinoCommand("Выбери красное, чёрное или зеро")
+        return choice
+
+    def _result_for_number(self, bet: int, choice: str, number: int) -> GameResult:
+        choice = self._validated_choice(choice)
         if type(number) is not int or number not in EUROPEAN_WHEEL:
             raise ValueError("Invalid roulette number")
         color = "zero" if number == 0 else "red" if number in RED_NUMBERS else "black"

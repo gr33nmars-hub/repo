@@ -4,16 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import secrets
 from itertools import count
 
+from .provably_fair import new_server_seed, seed_hash
 
-def new_server_seed() -> str:
-    return secrets.token_hex(32)
-
-
-def seed_hash(server_seed: str) -> str:
-    return hashlib.sha256(server_seed.encode("utf-8")).hexdigest()
+__all__ = ["new_server_seed", "reel_stops", "seed_hash"]
 
 
 def reel_stops(server_seed: str, client_seed: str, lengths: list[int]) -> list[int]:

@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import secrets
 from itertools import count
 from typing import TypeVar
 
 T = TypeVar("T")
+
+
+def new_server_seed() -> str:
+    return secrets.token_hex(32)
+
+
+def seed_hash(server_seed: str) -> str:
+    return hashlib.sha256(server_seed.encode("utf-8")).hexdigest()
 
 
 def digest(server_seed: str, client_seed: str, nonce: int, stream: str, index: int) -> bytes:

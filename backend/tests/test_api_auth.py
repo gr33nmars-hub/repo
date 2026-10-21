@@ -9,6 +9,7 @@ import pytest
 from casino.api import create_app
 from casino.api_schemas import CasinoStateResponse, PlayRequest
 from casino.application.service import CasinoService
+from casino.domain.models import GameResult
 from casino.persistence.sqlite import PlayerRepository
 from fastapi.testclient import TestClient
 
@@ -299,3 +300,25 @@ def test_stale_slot_commitment_returns_conflict_and_refreshes_state(tmp_path: Pa
     assert response.json()["code"] == "stale_game_state"
     assert "Seed" in response.json()["detail"]
     assert first_service.refresh_state()["player"]["rounds_played"] == 1
+
+
+def test_failed_stale_refresh_keeps_the_in_memory_state_unchanged(tmp_path: Path) -> None:
+    path = tmp_path / "shared.sqlite3"
+    stale_service = CasinoService(PlayerRepository(path))
+    writer = CasinoService(PlayerRepository(path))
+
+    def lose(bet: int, _: list[int]) -> GameResult:
+        return GameResult("slots", "Слоты", "Проигрыш", bet, 0, "Тест")
+
+    writer.games["slots"].play_at_stops = lose
+    writer.play("slots", 2495, "", "drain-wallet")
+    writer.refill("refill-wallet")
+    old_state = stale_service.state()
+
+    with sqlite3.connect(path) as connection:
+        connection.execute("UPDATE metadata SET value='invalid' WHERE key='server_seed'")
+
+    with pytest.raises(RuntimeError, match="Server seed commitment"):
+        stale_service.refresh_state()
+
+    assert stale_service.state() == old_state

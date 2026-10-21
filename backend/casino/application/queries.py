@@ -9,8 +9,8 @@ from casino.domain.blackjack import Blackjack
 from casino.domain.core import CasinoGame
 from casino.domain.games import SlotMachine
 from casino.domain.models import GameResult, Player
+from casino.domain.provably_fair import seed_hash
 from casino.domain.round_verifier import verification_status
-from casino.domain.slot_fairness import seed_hash
 
 
 def blackjack_view(blackjack: Blackjack, balance: int) -> dict[str, object] | None:

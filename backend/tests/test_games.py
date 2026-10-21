@@ -7,6 +7,7 @@ from casino.application.queries import game_catalog_item, game_result_view
 from casino.domain.core import GameRules
 from casino.domain.errors import InvalidCasinoCommand
 from casino.domain.games import RED_NUMBERS, Roulette, SlotMachine, SlotRules
+from casino.domain.models import GameResult
 
 
 class FixedRandom:
@@ -92,6 +93,14 @@ def test_slots_pay_triple_pair_and_loss(symbols: list[str], expected: int) -> No
     assert game_result_view(result)["reel_stops"] == stops
 
 
+@pytest.mark.parametrize("stops", [None, 3, (), [0, 0], [0, 0, None]])
+def test_slots_reject_invalid_stop_inputs(stops: object) -> None:
+    game = SlotMachine()
+
+    with pytest.raises(ValueError, match="Invalid slot reel stops"):
+        game.play_at_stops(10, cast(Any, stops))
+
+
 def test_slot_reel_strips_keep_original_symbol_frequencies() -> None:
     rules = SlotRules()
     for reel in rules.reels:
@@ -126,11 +135,29 @@ def test_game_result_view_does_not_expose_mutable_domain_fields() -> None:
 
 
 @pytest.mark.parametrize(
+    "fairness", [[], "proof", 1, {"unexpected": object()}, {"nonce": float("nan")}]
+)
+def test_game_result_rejects_invalid_fairness(fairness: object) -> None:
+    with pytest.raises(ValueError):
+        GameResult("roulette", "Рулетка", "Победа", 10, 20, "Красное", fairness=cast(Any, fairness))
+
+
+@pytest.mark.parametrize(
     ("number", "choice", "expected"), [(0, "zero", 360), (1, "red", 20), (2, "red", 0)]
 )
 def test_roulette_pays_zero_and_color(number: int, choice: str, expected: int) -> None:
     result = Roulette(rng=FixedRandom([number])).play(10, choice)
     assert result.payout == expected
+
+
+@pytest.mark.parametrize("choice", [[], {}, None, "green"])
+def test_roulette_rejects_invalid_choices_before_drawing(choice: object) -> None:
+    game = Roulette(rng=FixedRandom([]))
+
+    with pytest.raises(InvalidCasinoCommand):
+        game.play(10, cast(Any, choice))
+    with pytest.raises(InvalidCasinoCommand):
+        game.play_at_number(10, cast(Any, choice), 1)
 
 
 @pytest.mark.parametrize(("number", "choice"), list(product(range(37), ("red", "black", "zero"))))

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from typing import Protocol
@@ -17,8 +16,8 @@ from casino.domain.errors import InvalidCasinoCommand
 from casino.domain.games import Roulette, SlotMachine
 from casino.domain.ledger import LedgerEntryType, LedgerMovement
 from casino.domain.models import GameResult, Player
-from casino.domain.provably_fair import bounded_int
-from casino.domain.slot_fairness import reel_stops, seed_hash
+from casino.domain.provably_fair import bounded_int, new_server_seed, seed_hash
+from casino.domain.slot_fairness import reel_stops
 
 
 class CasinoCommandContext(Protocol):
@@ -158,7 +157,7 @@ def play_game(
         else:
             result = game.play(bet, choice)
         result.round_id = uuid4().hex
-        service._server_seed = secrets.token_hex(32)
+        service._server_seed = new_server_seed()
         unit_of_work.set_server_seed(service._server_seed)
         service.player.debit(bet)
         service.player.credit(result.payout)
@@ -235,7 +234,7 @@ def start_blackjack(
             service.player.credit(result.payout)
             service._record(result)
             entries.append(LedgerMovement(LedgerEntryType.BLACKJACK_PAYOUT, result.payout))
-            service._server_seed = secrets.token_hex(32)
+            service._server_seed = new_server_seed()
             unit_of_work.set_server_seed(service._server_seed)
         state = service.state()
         unit_of_work.save(
@@ -271,7 +270,7 @@ def blackjack_action(
                 service.player.credit(movement.delta)
         if transition.result is not None:
             service._record(transition.result)
-            service._server_seed = secrets.token_hex(32)
+            service._server_seed = new_server_seed()
             unit_of_work.set_server_seed(service._server_seed)
         response = service.state()
         unit_of_work.save(

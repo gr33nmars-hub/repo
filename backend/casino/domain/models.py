@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -17,7 +18,7 @@ class GameResult:
     details: str
     symbols: list[str] | None = None
     reel_stops: list[int] | None = None
-    fairness: dict | None = None
+    fairness: dict[str, Any] | None = None
     played_at: str = field(
         default_factory=lambda: datetime.now().astimezone().isoformat(timespec="seconds")
     )
@@ -60,6 +61,13 @@ class GameResult:
             raise ValueError(
                 "Остановки барабанов слота должны быть неотрицательными целыми числами"
             )
+        if self.fairness is not None:
+            if type(self.fairness) is not dict:
+                raise ValueError("Подтверждение честности раунда должно быть объектом")
+            try:
+                json.dumps(self.fairness, ensure_ascii=False, allow_nan=False)
+            except (TypeError, ValueError) as error:
+                raise ValueError("Подтверждение честности должно быть JSON-совместимым") from error
         if self.round_id is not None and (type(self.round_id) is not str or not self.round_id):
             raise ValueError("Идентификатор раунда должен быть непустой строкой")
         validate_rule_metadata(

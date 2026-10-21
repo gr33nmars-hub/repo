@@ -43,11 +43,21 @@ class CasinoService:
         revision = unit_of_work.revision()
         if revision == self._revision:
             return
-        self.player = unit_of_work.load()
-        self.blackjack.restore_snapshot(unit_of_work.load_blackjack())
-        self._validate_active_blackjack_ledger(unit_of_work)
+
+        player = unit_of_work.load()
+        blackjack_snapshot = unit_of_work.load_blackjack()
+        server_seed = unit_of_work.load_server_seed()
+        checkpoint = self.blackjack.checkpoint()
+        try:
+            self.blackjack.restore_snapshot(blackjack_snapshot)
+            self._validate_active_blackjack_ledger(unit_of_work)
+        except BaseException:
+            self.blackjack.restore_checkpoint(checkpoint)
+            raise
+
+        self.player = player
         self._revision = revision
-        self._server_seed = unit_of_work.load_server_seed()
+        self._server_seed = server_seed
 
     def refresh_state(self) -> dict:
         """Refresh this process's snapshot before serving a read request."""

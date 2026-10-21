@@ -4,17 +4,17 @@ from collections import Counter
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from .core import GameRules, RandomSource, SecureRandom
 from .errors import InvalidCasinoCommand
 from .ledger import LedgerEntryType, LedgerMovement
 from .models import Card, GameResult
+from .provably_fair import seed_hash
 from .provably_fair import shuffle as fair_shuffle
 from .rule_metadata import fingerprint_rules
 from .shoe import Shoe
-from .slot_fairness import seed_hash
 
 BlackjackAction = Literal[
     "hit", "stand", "double", "split", "surrender", "insurance", "decline_insurance"
@@ -115,7 +115,7 @@ class BlackjackRound:
     insurance_payout: int = 0
     initial_bet: int = 0
     round_id: str | None = None
-    fairness: dict | None = None
+    fairness: dict[str, Any] | None = None
     draw_order: list[str] | None = None
     draw_events: list[dict[str, str]] | None = None
 
@@ -297,7 +297,7 @@ class Blackjack:
         self,
         bet: int,
         *,
-        fairness: dict | None = None,
+        fairness: dict[str, Any] | None = None,
         server_seed: str | None = None,
         client_seed: str = "",
         nonce: int = 0,
@@ -325,7 +325,7 @@ class Blackjack:
             dealer,
             initial_bet=bet,
             round_id=uuid4().hex,
-            fairness=fairness,
+            fairness=deepcopy(fairness),
             draw_order=draw_order,
             draw_events=draw_events,
         )
@@ -646,8 +646,8 @@ class Blackjack:
             "insurance_payout": round_.insurance_payout,
         }
         if round_.fairness is not None:
-            outcome["draw_order"] = round_.draw_order or []
-            outcome["draw_events"] = list(round_.draw_events or [])
+            outcome["draw_order"] = list(round_.draw_order or [])
+            outcome["draw_events"] = [event.copy() for event in round_.draw_events or []]
         return GameResult(
             self.game_id,
             self.name,
@@ -659,7 +659,7 @@ class Blackjack:
             rules_fingerprint=fingerprint_rules(self.rule_version, snapshot),
             rules_snapshot=snapshot,
             outcome=outcome,
-            fairness=round_.fairness,
+            fairness=deepcopy(round_.fairness),
             round_id=round_.round_id,
         )
 
@@ -707,7 +707,8 @@ class Blackjack:
                 and h.status in live_statuses
                 and (len(h.cards) != 1 or (h.from_split and h.status == "playing"))
                 and (not h.split_aces or (h.from_split and h.cards[0].rank == "A"))
-                and (not h.doubled or h.bet == round_.initial_bet * 2)
+                and h.doubled == (h.bet == round_.initial_bet * 2)
+                and (not h.doubled or (len(h.cards) == 3 and h.status != "playing"))
                 and (
                     h.status != "blackjack"
                     or (self._is_natural(h.cards) and not h.from_split and not h.doubled)

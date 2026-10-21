@@ -1,113 +1,88 @@
 # NOIR Casino Club
 
-Локальное казино на виртуальных фишках. Приложение не принимает реальные деньги, не поддерживает платежи, депозиты или вывод средств.
+Десктопное приложение игрового симулятора в стилистике нео-нуар с реализацией криптографической схемы доказательной честности (**Provably Fair** на базе HMAC-SHA256) и транзакционным реестром SQLite (ACID/WAL).
 
-## Запуск
+Проект разработан в рамках дисциплин **«Объектно-ориентированное программирование»** и **«Безопасность распределенных приложений»** (МИЭМ НИУ ВШЭ, направление «Информационная безопасность»). Приложение оперирует исключительно учебными виртуальными очками.
 
-Нужны Node.js, Rust (MSVC toolchain) и `uv`:
+---
 
+## Архитектурные особенности и ООП-дизайн
+
+1. **Объектная модель домена (`backend/games/`):**
+   - `Card`, `Hand`, `Shoe` — инкапсуляция колоды, динамический пересчет мягких тузов в блэкджеке, детерминированное тасование Фишера-Йетса.
+   - `SlotGame`, `SlotConfig` — композиция барабанов и расчет комбинаций выплат.
+   - `RouletteGame`, `RouletteConfig` — европейское колесо (37 секторов), вычисление матожидания и исходов.
+2. **Криптографическая подсистема (`backend/games/provably_fair.py`):**
+   - Генерация серверной энтропии через CSPRNG (`os.urandom`), исключающая уязвимости алгоритма Мерсенна Твистера (`MT19937`).
+   - Схема обязательства (Commitment Scheme): хеш $\text{SHA-256}(S_{server})$ передается клиенту **до** размещения ставки.
+   - Детерминированный срез исхода через $\text{HMAC-SHA256}(S_{server}, S_{client} : nonce)$.
+3. **Персистентность и защита от гонок (`backend/database.py`):**
+   - SQLite в режиме **WAL (Write-Ahead Logging)** со строгими `CHECK`-ограничениями на уровне схемы (`balance >= 0`).
+   - Атомарное списание `UPDATE player SET balance = balance - ? WHERE id = 1 AND balance >= ?`, исключающее уязвимости состояния гонки (Race Condition / TOCTOU) при параллельных запросах.
+4. **Desktop Shell & Presentation:**
+   - Легковесный системный контейнер WebView2 через `pywebview` с локальным асинхронным бэкендом на FastAPI.
+   - Клиент на React 19 + TypeScript со строгой статической типизацией, поддержкой accessible-стандартов (`aria-*`) и анимациями `requestAnimationFrame`.
+
+---
+
+## Структура репозитория
+
+```
+├── app.py                     # Точка входа: запуск Uvicorn-сервера и окна PyWebView
+├── pyproject.toml             # Зависимости Python (uv)
+├── Semerka.spec               # Конфигурация сборщика PyInstaller (GUI-режим без мигающей консоли)
+├── backend/
+│   ├── main.py                # REST API эндпоинты (FastAPI, lifespan, CORS)
+│   ├── database.py            # SQLite шлюз: ACID-транзакции, потокобезопасные блокировки
+│   ├── games/
+│   │   ├── provably_fair.py   # CSPRNG, commitment scheme, HMAC-SHA256 генератор
+│   │   ├── blackjack.py       # ООП-модель: Card, Hand, Shoe, FSM раунда
+│   │   ├── roulette.py        # ООП-модель: RouletteGame, европейские секторы
+│   │   └── slots.py           # ООП-модель: SlotGame, барабанные ленты, RTP
+│   └── tests/
+│       ├── test_games_and_fairness.py         # Юнит-тесты правил и детерминизма
+│       └── test_transactions_concurrency.py   # Стресс-тест параллельных списаний (Race Condition)
+└── frontend/
+    ├── src/
+    │   ├── types.ts           # Строгие контракты DTO и сущностей
+    │   ├── hooks/useCasino.ts # Управление состоянием клиента и API-вызовами
+    │   ├── components/        # Компоненты интерфейса (Lobby, Sidebar, Shell)
+    │   └── features/          # Модули игровых залов (Blackjack, Roulette, Slots, History)
+    └── vite.config.ts         # Сборка статических ассетов
+```
+
+---
+
+## Запуск и разработка
+
+### 1. Подготовка окружения (Python 3.10+)
+Установка зависимостей с помощью современного пакетного менеджера `uv`:
 ```powershell
 uv sync
+```
+
+### 2. Запуск автоматических тестов
+Запуск набора юнит-тестов и стресс-тестов на состояние гонки:
+```powershell
+$env:PYTHONPATH="backend"
+uv run pytest backend/tests/ -v
+```
+
+### 3. Запуск десктопного приложения
+```powershell
+uv run python app.py
+```
+
+### 4. Режим веб-разработки (Full-stack)
+Терминал 1 (API-сервер):
+```powershell
+uv run python backend/main.py
+```
+
+Терминал 2 (Клиент):
+```powershell
 cd frontend
 npm install
-npm run tauri:dev
-```
-
-Для разработки интерфейса в браузере запустите API и Vite в двух терминалах:
-
-```powershell
-# Корень проекта
-uv run --directory backend python run_api.py
-
-# frontend/
 npm run dev
 ```
-
-API должен слушать loopback `127.0.0.1`. Для Windows-сборки из корня выполните `uv sync --group build`, затем из `frontend/` соберите установщик. Tauri запускает `npm run build:desktop` перед bundle: команда собирает Python sidecar и frontend assets.
-
-`npm run tauri build` и `npm run tauri:dev` автоматически выбирают rustup toolchain `stable-x86_64-pc-windows-msvc`, загружают MSVC/Windows SDK через `VsDevCmd` и используют отдельный каталог `frontend/build/tauri-msvc` для Cargo. Нужны rustup, Visual Studio C++ x64 tools и Windows SDK. После сборки установщика отдельно проверьте запуск установленного приложения и работу sidecar.
-
-## Архитектура backend
-
-```text
-api.py, api_schemas.py, api_errors.py   FastAPI composition, HTTP и DTO
-application/commands.py                Транзакционные игровые/wallet use cases
-application/queries.py                 Read-side state projection
-application/ports.py                   CasinoRepository protocol
-application/service.py                 CasinoService и кэш состояния/revision
-domain/                                 Правила, игровые модели, ledger types, verifier
-persistence/sqlite.py                   SQLite adapter и атомарная запись агрегата
-persistence/migrations.py               Schema migrations v0–v4
-persistence/codecs.py                    Сохранения и совместимость форматов
-recovery.py, process_lock.py             Offline recovery и process lock
-```
-
-`CasinoService` координирует application commands через `CasinoRepository` и типизированные read/write Unit of Work; `PlayerRepository` реализует порт на SQLite, а connection остаётся внутри persistence adapter. Каждая команда работает в одной `BEGIN IMMEDIATE` транзакции и сохраняет профиль, активную раздачу, историю, типизированные ledger movements и idempotency response вместе. `CasinoGame` остаётся контрактом для one-shot слотов и рулетки; blackjack — отдельный stateful aggregate. Верхнеуровневые `casino.session`, `casino.storage`, `casino.blackjack` и соседние модули остаются compatibility exports для внешних callers; production код и основная тестовая suite используют новые пакеты.
-
-Активная раздача blackjack хранит идентификатор, связанный с записями её ставок; при восстановлении сохранённая сумма ставок сверяется с ledger. Старые снимки без такого идентификатора продолжают загружаться, но для них эта дополнительная сверка недоступна. Состав башмака проверяется по всем шести колодам. Новый башмак создаётся на границе раздач, когда осталось меньше 60 карт.
-
-## Ставка и жизненный цикл
-
-Для каждого действия backend начинает `BEGIN IMMEDIATE`, читает актуальную версию профиля, проверяет idempotency key, правила и баланс, вычисляет исход, затем сохраняет баланс, историю, ledger, полный ответ и ключ до commit. Поэтому параллельные backend-сессии не перезаписывают друг другу раунды. Повтор того же ключа и параметров возвращает сохранённый ответ без второго списания; повтор ключа с другими данными отклоняется. Frontend хранит ключ вместе с точным телом незавершённого запроса и повторяет именно его после сетевого сбоя.
-
-Блэкджек списывает начальную ставку при старте и сохраняет руки, карты дилера, оставшийся башмак и фазу хода. После перезапуска активная раздача восстанавливается. Каждое разрешённое действие обновляет состояние транзакционно; `double`, `split` и страховка списывают дополнительные фишки, а завершение записывает выплату и результат. Пополнение доступно только после завершения активной раздачи. При целочисленных фишках ставки должны быть чётными, чтобы выплата 3:2 и возврат половины при сдаче оставались точными.
-
-## Правила и выплаты
-
-Лимиты ставок находятся в `GameRules`, blackjack — в `BlackjackRules`, рулетка — в `RouletteRules`, слоты — в `SlotRules`. Конфигурации проверяются при создании. Изменяйте параметры там, а не в HTTP-обработчиках.
-
-- **Европейская рулетка:** равномерный выбор кармана `0..36`; красные номера заданы в `RED_NUMBERS`, остальные ненулевые — чёрные. Красное/чёрное возвращают `2 × ставка` (ставка включена); зеро возвращает `36 × ставка` (35:1 выигрыш плюс ставка). Существующие варианты UI/API — `red`, `black`, `zero`.
-- **Блэкджек:** шесть колод в башмаке; туз считается за 11 и понижается до 1 при переборе; дилер стоит на любом 17, включая soft 17. Дилер получает закрытую карту и проверяет натуральный блэкджек при открытом тузе или карте стоимостью 10. Натуральный блэкджек платит `ставка × 5 / 2` вместе со ставкой, обычная победа — `2 × ставка`, push — `ставка`, проигрыш — 0. Натуральный блэкджек возможен только на первых двух картах исходной руки; 21 после добора или разделения пары оплачивается как обычная победа.
-- **Решения игрока:** взять карту, остановиться, удвоить ставку и получить ровно одну карту, разделить пару одинаковой стоимости (10/J/Q/K совместимы) до четырёх рук с отдельной равной ставкой, сдаться на первых двух картах после проверки дилера и получить половину ставки обратно. После разделения первая рука получает карту и играется до конца, затем следующая получает свою карту; после разделения можно удваивать. На каждую руку из разделённых тузов выдаётся ровно одна карта. При открытом тузе дилера доступна страховка до половины исходной ставки, оплачиваемая 2:1 при натуральном блэкджеке дилера. Недоступные по фазе или балансу действия отклоняются сервером.
-- **Слоты:** каждый из трёх барабанов имеет явно заданную последовательность символов, повтор символа задаёт его вес. Тройка платит настроенный множитель от 4× до 24× (включая ставку), любая пара возвращает 1×, прочее — 0. Интерфейс показывает таблицу выплат и теоретическое ожидание, рассчитанное по текущей конфигурации барабанов; это ожидание не предсказывает результат отдельной сессии.
-
-Slots, roulette и blackjack публикуют SHA-256 commitment следующего server seed в `/api/state`, принимают client seed и ожидаемый commitment, затем сохраняют proof в истории. Для slots проверяются позиции барабанов и выплата; для roulette — номер и выплата; для blackjack — детерминированная колода, порядок добора и выплата. Повтор идентичного idempotency key не запускает раунд повторно. Старые записи без proof отмечаются как `legacy-unverified`. Проверка подтверждает соответствие результата опубликованному хешу, но не доказывает честность локального приложения: seed хранится в локальной SQLite-базе и доступен её владельцу. Подробнее: [проверяемые исходы](docs/agent/provably-fair.md).
-
-Правила блэкджека выбраны по [главе 633a кодекса Пенсильвании](https://www.pacodeandbulletin.gov/secure/pacode/data/058/chapter633a/chap633atoc.html) и [описанию классического стола комиссии Невады](https://www.gaming.nv.gov/siteassets/content/divisions/technology/rules-of-play/gameace-live-blackjack.pdf). Параметры стола явно показаны в интерфейсе; дополнительные варианты из источников, например Seven Card Charlie, в игру не добавлены.
-
-## Хранилище и перенос профиля
-
-При штатном закрытии desktop-приложения sidecar сохраняет строку отчёта с логином, временем входа и выхода в `~/.noir-casino/session-report.txt`; путь можно переопределить через `NOIR_CASINO_SESSION_REPORT_PATH`.
-
-SQLite-файл по умолчанию: `~/.noir-casino/casino.sqlite3`. При первом создании базы профиль `~/.noir-casino/player.json`, включая активное состояние блэкджека, импортируется в транзакции. Исходный JSON не удаляется. Если файл повреждён или активная раздача не проходит проверку, запуск завершается с ошибкой вместо тихого сброса прогресса. Можно задать `NOIR_CASINO_SAVE_PATH` на путь SQLite; для совместимости заданный путь с суффиксом `.json` означает соседний `.sqlite3` и этот JSON источник миграции.
-
-Таблица `ledger` содержит opening balance и движения виртуальных фишек с балансом после каждой записи; `processed_requests` хранит использованные ключи, подпись операции и ответ. При запуске проверяется непрерывность ledger и равенство итогового баланса профилю. Несовпадение блокирует запись, не исправляя баланс автоматически. Полная история раундов сохраняется для статистики, API показывает последние 12 записей. SQLite атомарно сериализует операции нескольких локальных соединений и процессов.
-
-Создать backup и проверить его можно командами `uv run --directory backend python -m casino.recovery backup <backup.sqlite3> --source <casino.sqlite3>` и `uv run --directory backend python -m casino.recovery verify <backup.sqlite3>`. Для восстановления backend должен быть остановлен; CLI также проверяет межпроцессную блокировку перед заменой файла. Восстановление в новый путь: `uv run --directory backend python -m casino.recovery restore <backup.sqlite3> <casino.sqlite3>`. Для существующего назначения нужен `--replace`; перед заменой команда сохраняет отдельную копию, в том числе если совпала UTC-секунда с предыдущей операцией. Старый `player.json` сохраняется рядом с SQLite как `player.pre-migration-<UTC timestamp>.json` до импорта.
-
-## HTTP API
-
-Маршруты и формы ответов state/history сохранены. Для POST, меняющих состояние, обязателен `idempotency_key`:
-
-```http
-GET  /api/health
-GET  /api/state
-POST /api/games/roulette/play
-Content-Type: application/json
-{"bet": 20, "choice": "zero", "idempotency_key": "uuid"}
-
-POST /api/blackjack/start
-{"bet": 20, "idempotency_key": "uuid"}
-
-POST /api/blackjack/action
-{"action": "stand", "idempotency_key": "uuid"}
-
-POST /api/refill
-{"idempotency_key": "uuid"}
-```
-
-Ошибки имеют поля `code` и `detail`: неверная игровая команда — 400 (`invalid_request`), неверный sidecar token — 401 (`unauthorized`), конфликт idempotency или устаревший commitment любой игры — 409 (`idempotency_conflict` или `stale_game_state`), ошибка формы запроса — 422 (`invalid_request`). Неизвестные поля запроса запрещены. DTO проверяют форму ответов сервера; существующие URL и поля успешного состояния сохранены, `server_seed_hash` добавлен как универсальное поле, прежнее `slots_server_seed_hash` остаётся совместимым alias. Повторный запрос с тем же ключом и телом вернёт ранее сохранённый ответ. API предназначен только для loopback-доступа.
-
-Для `/api/blackjack/action` допустимы `hit`, `stand`, `double`, `split`, `surrender`, `insurance` и `decline_insurance`. Ответ `/api/state` содержит фазу раздачи, список `hands`, индекс активной руки и `available_actions`; интерфейс включает кнопки по этому списку. Игровые команды принимают `client_seed` и `expected_server_seed_hash`; устаревший commitment отклоняется до ставки, чтобы два процесса не выдали непроверяемый результат.
-
-## Структура кода
-
-- **Инкапсуляция:** `Blackjack` владеет состоянием колоды/руки и проверяет действия только в активном состоянии.
-- **Абстракция:** `CasinoGame.play()` и `RandomSource` задают минимальные контракты.
-- **Полиморфизм:** каталог публикует сведения о слотах и рулетке через общий контракт `CasinoGame`; blackjack сохраняет собственную state machine.
-- **Композиция:** игра получает RNG и конфигурацию правил; `CasinoService` получает repository port; `create_app()` принимает application service.
-- **Разделение ответственности:** транспорт, orchestration, правила домена и SQL находятся в отдельных модулях.
-
-## Проверки
-
-Backend-команды из корня: `uv run --directory backend --group test python -m unittest discover -s tests -q`, `uv run --directory backend --group quality ruff check casino tests run_api.py`, `uv run --directory backend --group quality ruff format --check casino tests run_api.py`, `uv run --directory backend --group quality mypy --python-version 3.10 casino`. Группа `test` содержит Hypothesis для генерации игровых трасс. Frontend-команды из `frontend/`: `npm run test:unit`, `npm run lint`, `npm run build`, `npm run build:desktop`. `npm run tauri build` собирает Windows installer; установленный runtime и sidecar lifecycle нужно smoke-проверить отдельно.
+Интерфейс будет доступен по адресу `http://localhost:5173`.

@@ -1,61 +1,35 @@
-# Python
-__pycache__/
-**/__pycache__/
-*.py[cod]
-
-# Virtual environments
+# Python & Virtual Environments
 .venv/
 venv/
+ENV/
 env/
-
-# Environments / secrets
-.env
-.env.*
-!.env.example
-!.env.*.example
-
-# Tool caches
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.tox/
-.nox/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
 .coverage
 htmlcov/
 
-# Bundled app build output
-build/
-frontend/src-tauri/target/
-frontend/src-tauri/binaries/*.exe
-*.spec
-
-# Local casino profile and runtime data
-.flet/
+# SQLite Databases & Local States
 *.sqlite3
-*.sqlite3-shm
 *.sqlite3-wal
+*.sqlite3-shm
+.noir-casino/
 
-# Frontend dependencies and build output
+# Node & Frontend Build
 frontend/node_modules/
 frontend/dist/
+dist/
+build/
+*.tsbuildinfo
 
-# Local agent/tool installations and their configuration
-.agents/*
-!.agents/skills/
-!.agents/skills/**
-.claude/
-agent/*
-!agent/skills/
-!agent/skills/**
-
-# Repository-local agent/tool copies are not application runtime
-.agents/
-.claude/
-agent/
-
-# IDE
-.idea/
-.vscode/
-
-# macOS
+# OS & Bundlers
+*.exe
+*.spec.bak
+Thumbs.db
 .DS_Store
+*.log
+
+# Agent & IDE caches
+.agents/
+

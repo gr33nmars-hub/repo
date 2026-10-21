@@ -1,7 +1,0 @@
-{
-  "app": {
-    "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:8765 http://localhost:5173 ws://localhost:5173; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
-    }
-  }
-}

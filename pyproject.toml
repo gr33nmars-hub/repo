@@ -1,30 +1,15 @@
 [project]
 name = "noir-casino"
-version = "0.1.0"
-description = "Backend domain and API for a local virtual-chip casino"
+version = "1.0.0"
+description = "NOIR Casino Club"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.121.0",
-    "uvicorn[standard]>=0.38.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "pywebview>=5.0.0",
+    "pyinstaller>=6.10.0",
+    "pytest>=9.1.1",
+    "httpx>=0.28.1",
+    "pyqt6>=6.11.0",
 ]
-
-[dependency-groups]
-build = [
-    "pyinstaller>=6.16.0",
-]
-quality = [
-    "mypy>=1.13",
-    "ruff>=0.11",
-]
-test = [
-    "hypothesis>=6.168.0",
-]
-
-[tool.ruff]
-target-version = "py310"
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "UP", "SIM", "TRY", "DTZ"]
-ignore = ["TRY003", "TRY004", "TRY301"]

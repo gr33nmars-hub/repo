@@ -1,6 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { isTauri } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { useState, type ReactNode } from 'react'
 import { AppShell, type RoomRoute } from './components/shell/AppShell'
 import { LobbyPage } from './components/lobby/LobbyPage'
 import { BlackjackPage } from './features/blackjack/BlackjackPage'
@@ -8,8 +6,6 @@ import { RoulettePage } from './features/roulette/RoulettePage'
 import { SlotsPage } from './features/slots/SlotsPage'
 import { HistoryPage } from './features/history/HistoryPage'
 import { useCasino } from './hooks/useCasino'
-import { stopBackend } from './platform/desktopBackend'
-import { createCloseRequestHandler } from './platform/desktopLifecycle.mjs'
 import type { RouletteChoice } from './types'
 import './styles/shell.css'
 import './features/shared/game-ui.css'
@@ -20,6 +16,7 @@ function App() {
   const [bet, setBet] = useState<number | null>(null)
   const [rouletteChoice, setRouletteChoice] = useState<RouletteChoice>('red')
   const [slotHeldBalance, setSlotHeldBalance] = useState<number | null>(null)
+  
   const state = casino.state
   const blackjackInProgress = state?.blackjack?.status === 'playing' || state?.blackjack?.status === 'insurance'
   const balance = state?.player.balance ?? 0
@@ -30,28 +27,6 @@ function App() {
   const minimumBet = gameInfo?.minimum_bet ?? 0
   const amount = bet ?? minimumBet
   const refillMinimum = state?.games.find((game) => game.id === 'blackjack')?.minimum_bet ?? 0
-
-  useEffect(() => {
-    let disposed = false
-    let unlistenClose: (() => void) | undefined
-    const stopBeforeUnload = () => { void stopBackend() }
-    window.addEventListener('beforeunload', stopBeforeUnload)
-    if (isTauri()) {
-      const closeHandler = createCloseRequestHandler(
-        stopBackend,
-        () => getCurrentWindow().destroy(),
-      )
-      void getCurrentWindow().onCloseRequested(closeHandler).then((unlisten) => {
-        if (disposed) unlisten()
-        else unlistenClose = unlisten
-      }).catch(() => undefined)
-    }
-    return () => {
-      disposed = true
-      unlistenClose?.()
-      window.removeEventListener('beforeunload', stopBeforeUnload)
-    }
-  }, [])
 
   function setWager(value: string) {
     setBet(value.trim() ? Number(value) : 0)
@@ -65,6 +40,7 @@ function App() {
       </button>
     </section>
   )
+
   let gamePage: ReactNode = null
   switch (room) {
     case 'history':
@@ -97,7 +73,7 @@ function App() {
           maximum={gameInfo.maximum_bet}
           busy={casino.busy}
           onAmountChange={setWager}
-          onStart={() => void casino.startBlackjack(amount, state.server_seed_hash ?? undefined)}
+          onStart={() => void casino.startBlackjack(amount)}
           onAction={(action) => void casino.blackjackAction(action)}
         />
       )
@@ -118,7 +94,7 @@ function App() {
           initialRound={state.history.find((round) => round.game_id === 'slots')}
           onBalanceHold={setSlotHeldBalance}
           onAmountChange={setWager}
-          onPlay={() => casino.play('slots', amount, '', state.slots_server_seed_hash ?? undefined)}
+          onPlay={() => casino.play('slots', amount, '')}
         />
       )
       break
@@ -139,14 +115,25 @@ function App() {
           onAmountChange={setWager}
           onChoice={setRouletteChoice}
           initialRound={state.history.find((round) => round.game_id === 'roulette')}
-          onPlay={() => casino.play('roulette', amount, rouletteChoice, state.server_seed_hash ?? undefined)}
+          onPlay={() => casino.play('roulette', amount, rouletteChoice)}
         />
       )
       break
   }
 
   return (
-    <AppShell room={room} player={state ? { ...state.player, balance: shownBalance } : null} balanceHeld={room === 'slots' && slotHeldBalance !== null} isConnected={Boolean(state)} isBusy={casino.busy || slotHeldBalance !== null} canRefill={Boolean(state && slotHeldBalance === null && refillMinimum > 0 && state.player.balance < refillMinimum)} error={room === 'history' && !state ? null : casino.error} retryAvailable={casino.retryAvailable} onNavigate={setRoom} onRetry={() => void casino.retry()} onRefill={() => void casino.refill()}>
+    <AppShell
+      room={room}
+      player={state ? { ...state.player, balance: shownBalance } : null}
+      balanceHeld={room === 'slots' && slotHeldBalance !== null}
+      isConnected={Boolean(state)}
+      isBusy={casino.busy || slotHeldBalance !== null}
+      canRefill={Boolean(state && slotHeldBalance === null && refillMinimum > 0 && state.player.balance < refillMinimum)}
+      error={room === 'history' && !state ? null : casino.error}
+      onNavigate={setRoom}
+      onRetry={() => void casino.refresh()}
+      onRefill={() => void casino.refill()}
+    >
       {gamePage ?? (casino.error ? (
         <section className="lobby-empty lobby-empty--connection" aria-live="polite">
           <h1>Клуб пока закрыт</h1>

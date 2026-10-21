@@ -81,7 +81,7 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
     const current = valid ? amount : minimumEven
     onAmountChange(String(Math.min(maximumEven, Math.max(minimumEven, Math.floor(current * factor / 2) * 2))))
   }
-  const ruleData = round?.rules
+  const ruleData = (round?.rules as Record<string, unknown> | undefined) ?? { dealer_soft_17: 'stand', blackjack_payout: '3:2', insurance_payout: '2:1' }
   const dealerSoft17Rule = ruleData?.dealer_soft_17
   const tableRules = {
     dealerSoft17: dealerSoft17Rule === 'hit' || dealerSoft17Rule === 'stand' ? dealerSoft17Rule : null,

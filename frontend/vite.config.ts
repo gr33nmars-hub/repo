@@ -1,7 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -11,7 +10,7 @@ export default defineConfig({
       allow: ['..'],
     },
     watch: {
-      ignored: ['**/build/**', '**/src-tauri/target/**', '**/src-tauri/binaries/**'],
+      ignored: ['**/dist/**', '**/.venv/**'],
     },
   },
 })

@@ -13,17 +13,17 @@ const gameDetails: Record<GameId, {
 }> = {
   blackjack: {
     description: 'Карты против дилера',
-    experience: 'Набери 21 очко, не превысив.',
+    experience: 'Набери 21 очко, не превысив. Башмак 6 колод.',
     image: blackjackImage,
   },
   roulette: {
     description: 'Европейское колесо 0–36',
-    experience: 'Ставь на красное, чёрное или зеро.',
+    experience: 'Ставки на цвет или зеро. Provably Fair генерация.',
     image: rouletteImage,
   },
   slots: {
-    description: 'Три барабана',
-    experience: 'Собери выигрышную комбинацию.',
+    description: 'Классические слоты 3×3',
+    experience: 'Центральная линия выплат. Детерминированный RTP.',
     image: slotsImage,
   },
 }
@@ -49,8 +49,8 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
   return (
     <div className="lobby-page">
       <header className="lobby-heading">
-        <h1>Лобби</h1>
-        <p>Три зала. Одна атмосфера.</p>
+        <h1>Игровые залы</h1>
+        <p>Виртуальные фишки. Настоящая математика и честные алгоритмы.</p>
       </header>
 
       {orderedGames.length ? (
@@ -78,7 +78,7 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
                       : `${game.minimum_bet.toLocaleString('ru-RU')} – ${game.maximum_bet.toLocaleString('ru-RU')}`}</strong>
                     {game.maximum_bet === undefined && <small>Без верхнего лимита</small>}
                   </span>
-                  <span className="table-entry-action">Войти<Icon name="arrow" /></span>
+                  <span className="table-entry-action">Войти в зал<Icon name="arrow" /></span>
                 </span>
               </button>
             ) : null
@@ -93,36 +93,43 @@ export function LobbyPage({ state, onOpen, onRetry }: LobbyPageProps) {
 
       <div className="lobby-lower-grid">
         <section className="player-ledger" aria-labelledby="player-ledger-title">
-          <h2 id="player-ledger-title">Твоя игра</h2>
+          <h2 id="player-ledger-title">Статистика игрока</h2>
           <dl className="ledger-stats">
             <div><dt>Раундов</dt><dd>{player.rounds_played.toLocaleString('ru-RU')}</dd></div>
             <div><dt>Побед</dt><dd>{player.wins.toLocaleString('ru-RU')} <small>· {player.win_rate}%</small></dd></div>
             <div><dt>Оборот</dt><dd>{player.total_wagered.toLocaleString('ru-RU')}</dd></div>
           </dl>
+          {player.current_server_seed_hash && (
+            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #333c33', fontSize: '11px', color: '#8d9489', wordBreak: 'break-all' }}>
+              <strong>Commitment Hash (SHA-256):</strong>
+              <div style={{ fontFamily: 'var(--mono)', marginTop: '3px' }}>{player.current_server_seed_hash}</div>
+            </div>
+          )}
         </section>
 
         <section className="lobby-recent" aria-labelledby="recent-rounds-title">
           <div className="lobby-section-heading">
-            <h2 id="recent-rounds-title">Последние раунды</h2>
-            {history.length > 0 && <button type="button" onClick={() => onOpen('history')}>Вся история<Icon name="arrow" /></button>}
+            <h2 id="recent-rounds-title">Недавние исходы</h2>
+            {history.length > 0 && <button type="button" onClick={() => onOpen('history')}>Журнал раундов<Icon name="arrow" /></button>}
           </div>
           {latestRounds.length > 0 ? (
-            <>
-              <ol className="recent-round-list">
-                {latestRounds.map((round, index) => (
-                  <li key={`${round.played_at}-${index}`}>
-                    <GameMark className="recent-round-mark" game={round.game_id} />
-                    <span className="recent-round-copy"><strong>{round.message}</strong><small><span>{round.game_name}</span><time dateTime={round.played_at}>{roundTime(round.played_at)}</time></small></span>
-                    <span className={`recent-round-profit${round.profit > 0 ? ' is-positive' : round.profit < 0 ? ' is-negative' : ''}`}>
-                      {round.profit > 0 ? '+' : ''}{round.profit.toLocaleString('ru-RU')}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </>
+            <ol className="recent-round-list">
+              {latestRounds.map((round, index) => (
+                <li key={`${round.played_at}-${index}`}>
+                  <GameMark className="recent-round-mark" game={round.game_id} />
+                  <span className="recent-round-copy">
+                    <strong>{round.message}</strong>
+                    <small><span>{round.game_name}</span><time dateTime={round.played_at}>{roundTime(round.played_at)}</time></small>
+                  </span>
+                  <span className={`recent-round-profit${round.profit > 0 ? ' is-positive' : round.profit < 0 ? ' is-negative' : ''}`}>
+                    {round.profit > 0 ? '+' : ''}{round.profit.toLocaleString('ru-RU')}
+                  </span>
+                </li>
+              ))}
+            </ol>
           ) : (
             <div className="lobby-empty lobby-empty--history">
-              <span>История пока пуста</span>
+              <span>Журнал пока пуст</span>
               <p>Завершённые раунды появятся здесь.</p>
               <button type="button" onClick={() => onOpen('blackjack')}>Открыть блэкджек<Icon name="arrow" /></button>
             </div>

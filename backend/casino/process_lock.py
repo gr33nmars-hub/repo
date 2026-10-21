@@ -30,7 +30,7 @@ class BackendProcessLock:
             lock_file = self.path.open("a+b")
             self._file = lock_file
             if os.name == "nt":
-                import msvcrt
+                msvcrt = importlib.import_module("msvcrt")
 
                 lock_file.seek(0)
                 if lock_file.read(1) == b"":
@@ -56,7 +56,7 @@ class BackendProcessLock:
             return
         try:
             if os.name == "nt":
-                import msvcrt
+                msvcrt = importlib.import_module("msvcrt")
 
                 lock_file.seek(0)
                 msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)

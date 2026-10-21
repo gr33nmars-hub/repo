@@ -535,14 +535,16 @@ def test_failed_blackjack_save_restores_hand_and_shoe() -> None:
         assert repository.get_request_response("hit-request") is None
 
 
-def test_deterministic_action_traces_preserve_wallet_and_restore_invariants() -> None:
+def test_deterministic_action_traces_preserve_wallet_and_restore_invariants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "casino.sqlite3"
+        server_seed = "0" * 62 + "26"
+        monkeypatch.setattr("secrets.token_hex", lambda _: server_seed)
 
         def reload_session() -> CasinoService:
-            restored = CasinoService(PlayerRepository(path))
-            restored.blackjack._rng = random.Random(5521)
-            return restored
+            return CasinoService(PlayerRepository(path))
 
         session = reload_session()
         action_count = 0
@@ -560,7 +562,7 @@ def test_deterministic_action_traces_preserve_wallet_and_restore_invariants() ->
                 }:
                     actions = session.blackjack.available_actions(session.player.balance)
                     assert actions
-                    action = chooser.choice(actions)
+                    action = "insurance" if "insurance" in actions else chooser.choice(actions)
                     seen_actions.add(action)
                     session.blackjack_action(action, f"trace-action-{action_count}")
                     action_count += 1

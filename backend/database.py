@@ -1,9 +1,8 @@
 """
-Модуль персистентности и управления транзакциями SQLite с гарантией ACID.
-Учебный проект МИЭМ НИУ ВШЭ.
+Модуль персистентности и управления транзакциями SQLite.
 
 Ключевые свойства:
-1. Режим WAL (Write-Ahead Logging) для устойчивого параллельного чтения/записи.
+1. Режим WAL (Write-Ahead Logging) для безопасного параллельного чтения/записи.
 2. Проверка ограничений (CHECK constraints) на уровне схемы БД: баланс >= 0.
 3. Атомарное списание средств: UPDATE ... WHERE id = 1 AND balance >= ?
 4. Управление активной игровой сессией и историей с Provably Fair метаданными.
@@ -95,7 +94,7 @@ def init_db(force: bool = False):
                         id, name, balance, rounds_played, wins, losses, total_wagered,
                         client_seed, nonce, current_server_seed, current_server_seed_hash
                     )
-                    VALUES (1, 'Студент МИЭМ', 1000, 0, 0, 0, 0, 'miem_cs_hse', 0, ?, ?)
+                    VALUES (1, 'Player', 1000, 0, 0, 0, 0, 'noir_client_seed', 0, ?, ?)
                 """, (initial_seed, initial_hash))
 
             conn.commit()

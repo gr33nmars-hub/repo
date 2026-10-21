@@ -1,7 +1,7 @@
 """
 FastAPI REST API сервис игрового клуба NOIR Casino.
-Учебный проект МИЭМ НИУ ВШЭ по дисциплинам "Объектно-ориентированное программирование"
-и "Безопасность распределенных приложений".
+Предоставляет эндпоинты для настольных игр, криптографического модуля
+Provably Fair (HMAC-SHA256) и управления игровым состоянием.
 """
 
 import os
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NOIR Casino Club API",
-    description="Учебная система онлайн-казино с криптографическим модулем доказательной честности (Provably Fair) и ACID-персистентностью.",
+    description="Backend API with cryptographic Provably Fair outcomes (HMAC-SHA256) and ACID persistence.",
     version="2.0.0",
     lifespan=lifespan
 )

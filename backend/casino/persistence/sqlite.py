@@ -7,9 +7,10 @@ import shutil
 import sqlite3
 import tempfile
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from casino.application.errors import IdempotencyConflict
 from casino.application.ports import CasinoReadUnitOfWork, CasinoUnitOfWork
@@ -54,9 +55,13 @@ class PlayerRepository:
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=10, isolation_level=None)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA busy_timeout = 10000")
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute("PRAGMA busy_timeout = 10000")
+        except BaseException:
+            connection.close()
+            raise
         return connection
 
     def backup_to(self, destination: Path) -> Path:
@@ -73,7 +78,7 @@ class PlayerRepository:
         os.close(fd)
         temporary = Path(temporary_name)
         try:
-            with self._connection() as source, sqlite3.connect(temporary) as target:
+            with self._connection() as source, closing(sqlite3.connect(temporary)) as target:
                 source.backup(target)
                 check = target.execute("PRAGMA quick_check").fetchone()
                 if check is None or check[0] != "ok":
@@ -366,7 +371,7 @@ class PlayerRepository:
     @staticmethod
     def _validate_history_round_links(
         db: sqlite3.Connection,
-        rounds: list[dict],
+        rounds: list[dict[str, Any]],
         active_blackjack: BlackjackSnapshot | None,
     ) -> None:
         """Проверяет соответствие сохраненных раундов неизменяемым записям в журнале транзакций."""
@@ -456,7 +461,7 @@ class PlayerRepository:
         *,
         signature: str | None = None,
         db: sqlite3.Connection | None = None,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         if db is None:
             with self._write_connection() as connection:
                 return self.get_request_response(request_key, signature=signature, db=connection)
@@ -482,10 +487,10 @@ class PlayerRepository:
         request_key: str,
         signature: str,
         ledger_entries: list[LedgerMovement],
-        response: dict,
+        response: dict[str, Any],
         round_id: str | None = None,
         db: sqlite3.Connection | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Атомарно сохраняет профиль игрока, проводки в журнале и ответ для защиты от дублирования запросов."""
         if type(request_key) is not str or not 1 <= len(request_key) <= 128:
             raise ValueError("A bounded idempotency key is required for every profile write")
@@ -589,7 +594,7 @@ class SQLiteUnitOfWork:
 
     def get_request_response(
         self, request_key: str, *, signature: str | None = None
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         return self._repository.get_request_response(
             request_key, signature=signature, db=self._connection
         )
@@ -602,9 +607,9 @@ class SQLiteUnitOfWork:
         request_key: str,
         signature: str,
         ledger_entries: list[LedgerMovement],
-        response: dict,
+        response: dict[str, Any],
         round_id: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         return self._repository.save(
             player,
             blackjack,

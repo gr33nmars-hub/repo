@@ -6,6 +6,7 @@ import argparse
 import os
 import sqlite3
 import tempfile
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,16 +20,14 @@ def validate_database(path: Path) -> None:
     path = path.resolve()
     with tempfile.TemporaryDirectory(prefix="astoria-casino-verify-") as directory:
         copy_path = Path(directory) / "validation.sqlite3"
-        source = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
-        target = sqlite3.connect(copy_path)
-        try:
+        with (
+            closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)) as source,
+            closing(sqlite3.connect(copy_path)) as target,
+        ):
             source.backup(target)
             check = target.execute("PRAGMA quick_check").fetchone()
             if check is None or check[0] != "ok":
                 raise RuntimeError("SQLite integrity check failed")
-        finally:
-            target.close()
-            source.close()
         repository = PlayerRepository(copy_path)
         CasinoService(repository)
 
@@ -47,16 +46,14 @@ def _raw_sqlite_backup(source: Path, destination: Path) -> Path:
     temporary = Path(temporary_name)
     temporary.unlink()
     try:
-        source_db = sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)
-        target_db = sqlite3.connect(temporary)
-        try:
+        with (
+            closing(sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)) as source_db,
+            closing(sqlite3.connect(temporary)) as target_db,
+        ):
             source_db.backup(target_db)
             check = target_db.execute("PRAGMA quick_check").fetchone()
             if check is None or check[0] != "ok":
                 raise RuntimeError("SQLite backup failed its integrity check")
-        finally:
-            target_db.close()
-            source_db.close()
         os.replace(temporary, destination)
         return destination
     finally:

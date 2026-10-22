@@ -84,7 +84,7 @@ export function SlotSymbol({ value }: SlotSymbolProps) {
       </g>}
 
       {art === 'seven' && <g filter={`url(#${gradientId}-shadow)`}>
-        <text x="46" y="70" textAnchor="middle" fontFamily="Arial Black, Impact, sans-serif" fontSize="70" fontWeight="900" fontStyle="italic" fill={`url(#${gradientId}-red)`} stroke="#811f21" strokeWidth="2" paintOrder="stroke">7</text>
+        <text x="46" y="70" textAnchor="middle" fontFamily="Outfit, 'Segoe UI', Arial, sans-serif" fontSize="70" fontWeight="800" fill={`url(#${gradientId}-red)`} stroke="#811f21" strokeWidth="2" paintOrder="stroke">7</text>
         <path d="M23 25h31" stroke="#ffd3a1" strokeWidth="3" strokeLinecap="round" opacity=".8" />
       </g>}
 

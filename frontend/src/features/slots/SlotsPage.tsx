@@ -41,19 +41,18 @@ function roundSymbols(round: RoundResult | null): string[] | undefined {
   return parsed.length === 3 ? parsed : undefined
 }
 
-function Reel({ strip, position, moving }: { strip: string[]; position: number; moving: boolean }) {
-  const base = Math.floor(position)
-  return <div className={`slots-reel-window${moving ? ' is-moving' : ''}`}>
-    {Array.from({ length: 6 }, (_, offset) => {
-      const stop = base - 2 + offset
-      const symbol = strip[wrappedIndex(stop, strip.length)]
-      return <span
-        className={`slots-reel-cell${Math.abs(stop - position) < .5 ? ' is-center' : ''}`}
-        key={stop}
-        style={{ transform: `translate3d(0, ${(1 + stop - position) * 100}%, 0)` }}
-        aria-hidden="true"
-      ><SlotSymbol value={symbol} /></span>
-    })}
+function Reel({ strip, position, moving, onElement }: {
+  strip: string[]
+  position: number
+  moving: boolean
+  onElement: (element: HTMLDivElement | null) => void
+}) {
+  return <div className={`slots-page__reel-window${moving ? ' slots-page__reel-window--moving' : ''}`}>
+    <div className="slots-page__reel-strip" ref={onElement} style={{ transform: `translate3d(0, calc(${-wrappedIndex(position, strip.length)} * var(--reel-cell-height)), 0)` }} aria-hidden="true">
+      {Array.from({ length: strip.length + 4 }, (_, index) => (
+        <span className="slots-page__reel-cell" key={index}><SlotSymbol value={strip[wrappedIndex(index - 1, strip.length)]} /></span>
+      ))}
+    </div>
   </div>
 }
 
@@ -68,14 +67,16 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
   const strips = game.reel_strips?.length === 3 && game.reel_strips.every((strip) => strip.length > 0)
     ? game.reel_strips
     : null
-  const [positions, setPositions] = useState(() => strips ? initialStops(strips, initialRound) : [0, 0, 0])
+  const [initialPositions] = useState(() => strips ? initialStops(strips, initialRound) : [0, 0, 0])
   const [requesting, setRequesting] = useState(false)
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<RoundResult | null>(initialRound ?? null)
-  const positionsRef = useRef(positions)
+  const positionsRef = useRef(initialPositions)
+  const reelsRef = useRef<Array<HTMLDivElement | null>>([])
   const requestLock = useRef(false)
   const frameRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
+  const finishTimerRef = useRef<number | null>(null)
   const spinStartedRef = useRef(0)
   const previousFrameRef = useRef(0)
   const stopRef = useRef<StopMotion | null>(null)
@@ -87,9 +88,35 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
       mountedRef.current = false
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
       if (timerRef.current !== null) clearTimeout(timerRef.current)
+      if (finishTimerRef.current !== null) clearTimeout(finishTimerRef.current)
       onBalanceHold(null)
     }
   }, [onBalanceHold])
+
+  function drawPositions(next: number[], moving: boolean[] = [false, false, false]) {
+    positionsRef.current = next
+    if (!strips) return
+    next.forEach((position, index) => {
+      const reel = reelsRef.current[index]
+      if (!reel) return
+      reel.style.transform = `translate3d(0, calc(${-wrappedIndex(position, strips[index].length)} * var(--reel-cell-height)), 0)`
+      reel.parentElement?.classList.toggle('slots-page__reel-window--moving', moving[index])
+    })
+  }
+
+  function finishSpin(motion: StopMotion) {
+    if (!mountedRef.current || stopRef.current !== motion) return
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
+    if (finishTimerRef.current !== null) clearTimeout(finishTimerRef.current)
+    drawPositions(motion.to)
+    setResult(motion.result)
+    setSpinning(false)
+    onBalanceHold(null)
+    requestLock.current = false
+    stopRef.current = null
+    frameRef.current = null
+    finishTimerRef.current = null
+  }
 
   function animate(now: number) {
     const motion = stopRef.current
@@ -98,26 +125,17 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
         const t = Math.min(1, (now - motion.started) / stopDurations[index])
         return from + (motion.to[index] - from) * (1 - (1 - t) ** 3)
       })
-      positionsRef.current = next
-      setPositions(next)
       if (now - motion.started >= stopDurations[2]) {
-        positionsRef.current = motion.to
-        setPositions(motion.to)
-        setResult(motion.result)
-        setSpinning(false)
-        onBalanceHold(null)
-        requestLock.current = false
-        stopRef.current = null
-        frameRef.current = null
+        finishSpin(motion)
         return
       }
+      drawPositions(next, stopDurations.map((duration) => now - motion.started < duration))
     } else {
       const elapsed = now - spinStartedRef.current
       const dt = Math.min(48, now - previousFrameRef.current)
       const acceleration = Math.min(1, elapsed / 280)
       const next = positionsRef.current.map((position) => position + reelSpeed * acceleration * dt / 1000)
-      positionsRef.current = next
-      setPositions(next)
+      drawPositions(next, [true, true, true])
     }
     previousFrameRef.current = now
     frameRef.current = requestAnimationFrame(animate)
@@ -145,7 +163,9 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
       const length = strips[index].length
       return Math.ceil(position) + length + wrappedIndex(stops[index] - Math.ceil(position), length)
     })
-    stopRef.current = { started: performance.now(), from, to, result: nextResult }
+    const motion = { started: performance.now(), from, to, result: nextResult }
+    stopRef.current = motion
+    finishTimerRef.current = window.setTimeout(() => finishSpin(motion), stopDurations[2] + 100)
     setRequesting(false)
   }
 
@@ -159,8 +179,7 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
         const nextResult = await onPlay()
         if (mountedRef.current && nextResult) {
           const stops = nextResult.reel_stops ?? initialStops(strips, nextResult)
-          positionsRef.current = stops
-          setPositions(stops)
+          drawPositions(stops)
           setResult(nextResult)
         }
       } finally {
@@ -194,71 +213,59 @@ export function SlotsPage({ game, balance, amount, busy, blocked = false, initia
     <p>Не удалось загрузить правила слотов. Обнови игру и попробуй снова.</p>
   </section>
 
-  const status = blocked
-    ? 'Слоты недоступны, пока идёт раздача блэкджека'
-    : result
-    ? result.profit > 0 ? 'Выплата' : result.profit === 0 ? 'Ставка возвращена' : 'Нет выигрыша'
-    : requesting ? 'Барабаны вращаются' : spinning ? 'Барабаны останавливаются' : 'Можно крутить'
+  const status = blocked ? 'Заверши раздачу блэкджека, чтобы играть в слоты.'
+    : requesting ? 'Вращение…' : spinning ? 'Останавливаем барабаны…' : result?.message ?? ''
 
   return (
     <div className="slots-page">
-      <header className="game-page-heading slots-heading">
+      <header className="game-page-heading">
         <div>
           <h1>Слоты</h1>
-          <p>Комбинация считается по центральной линии.</p>
         </div>
       </header>
 
-      <div className="slots-layout">
-        <section className={`slots-table${spinning ? ' is-spinning' : ''}${requesting ? ' is-requesting' : ''}${result?.profit && result.profit > 0 ? ' is-winning' : ''}`} aria-label="Игровые барабаны">
-          <div className="slots-table-edge" aria-hidden="true" />
-          <div className="slots-bulbs" aria-hidden="true">{Array.from({ length: 15 }, (_, index) => <i key={index} />)}</div>
-          <div className="slots-machine">
-            <div className="slots-reels" aria-live="off" aria-busy={requesting || spinning}>
-              {[0, 1, 2].map((index) => <Reel key={index} strip={strips[index]} position={positions[index]} moving={spinning && (stopRef.current === null || performance.now() - stopRef.current.started < stopDurations[index])} />)}
-              <div className="slots-payline" aria-hidden="true"><span>▶</span><span>◀</span></div>
+      <div className="slots-page__layout">
+        <section className={`slots-page__table${spinning ? ' slots-page__table--spinning' : ''}${requesting ? ' slots-page__table--requesting' : ''}${result?.profit && result.profit > 0 ? ' slots-page__table--winning' : ''}`} aria-label="Игровые барабаны">
+          <div className="slots-page__machine">
+            <div className="slots-page__reels" aria-live="off" aria-busy={requesting || spinning}>
+              {[0, 1, 2].map((index) => <Reel key={index} strip={strips[index]} position={initialPositions[index]} moving={spinning} onElement={(element) => { reelsRef.current[index] = element }} />)}
+              <div className="slots-page__payline" aria-hidden="true" />
             </div>
           </div>
 
-          <div className="slots-machine-status" role="status" aria-live="polite">
-            <span className="slots-status-light" aria-hidden="true" />
-            <div><strong>{status}</strong>{result && <span>{result.message}</span>}</div>
-          </div>
+          <div className="slots-page__machine-status" role="status" aria-live="polite">{status}</div>
         </section>
 
-        <aside className="slots-console" aria-label="Управление автоматом">
-          <div className="slots-console-balance"><span>Баланс</span><strong>{balance.toLocaleString('ru-RU')} <small>фишек</small></strong></div>
-          <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || requesting || spinning} disabled={blocked} actionLabel="Крутить барабаны" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
-          <div className="slots-console-divider" />
-          <div className={`slots-last-round${result?.profit && result.profit > 0 ? ' is-positive' : ''}`}>
-            <span className="slots-console-caption">ПОСЛЕДНИЙ РАУНД</span>
-            {result ? <>
-              <div><span>Выплата</span><strong>{result.payout.toLocaleString('ru-RU')}</strong></div>
-              <div><span>Чистый итог</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
-            </> : <p>Итог появится после первого вращения.</p>}
-          </div>
-          <p className="slots-console-hint">Выплата определяется таблицей сочетаний.</p>
+        <aside className="slots-page__console" aria-label="Управление автоматом">
+          <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || requesting || spinning} disabled={blocked} layout="slots" actionLabel="Крутить барабаны" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
+          <section className="slots-page__last-round" aria-labelledby="slots-last-round-title">
+            <h2 id="slots-last-round-title">Последний раунд</h2>
+            <dl>
+              <div><dt>Ставка</dt><dd>{result ? result.bet.toLocaleString('ru-RU') : '—'}</dd></div>
+              <div><dt>Выплата</dt><dd>{result ? result.payout.toLocaleString('ru-RU') : '—'}</dd></div>
+              <div className={`slots-page__last-round-row${result && result.profit > 0 ? ' slots-page__last-round-row--positive' : result && result.profit < 0 ? ' slots-page__last-round-row--negative' : ''}`}><dt>Итог</dt><dd>{result ? `${result.profit > 0 ? '+' : ''}${result.profit.toLocaleString('ru-RU')}` : '—'}</dd></div>
+            </dl>
+          </section>
         </aside>
       </div>
 
-      <section className="slots-paytable" aria-label="Таблица выплат">
-        <div className="slots-paytable-heading"><h2>Таблица выплат</h2><span className="slots-paytable-rule">Учитывается центральная линия</span></div>
-        {paytable.length > 0 ? <div className="slots-payout-list">
+      <section className="slots-page__paytable" aria-label="Таблица выплат">
+        <div className="slots-page__paytable-heading"><h2>Таблица выплат</h2></div>
+        {paytable.length > 0 ? <div className="slots-page__payout-list">
           {paytable.map(({ symbol, multiplier }) => (
-            <div className="slots-payout-item" key={symbol}>
-              <div className={`slots-payout-symbols${symbol === '7️⃣' ? ' is-seven-triple' : ''}`} aria-hidden="true">
-                {symbol === '7️⃣' ? <span className="slots-payout-seven">777</span> : <><SlotSymbol value={symbol} /><SlotSymbol value={symbol} /><SlotSymbol value={symbol} /></>}
+            <div className="slots-page__payout-item" key={symbol}>
+              <div className={`slots-page__payout-symbols${symbol === '7️⃣' ? ' slots-page__payout-symbols--seven-triple' : ''}`} aria-hidden="true">
+                {symbol === '7️⃣' ? <span className="slots-page__payout-seven">777</span> : <><SlotSymbol value={symbol} /><SlotSymbol value={symbol} /><SlotSymbol value={symbol} /></>}
               </div>
               <strong>×{multiplier}</strong>
             </div>
           ))}
-          {typeof game.pair_multiplier === 'number' && <div className="slots-payout-item slots-payout-item--pair">
-            <div className="slots-payout-symbols" aria-hidden="true"><SlotSymbol value="🍒" /><SlotSymbol value="🍒" /><SlotSymbol value="🍋" /></div>
+          {typeof game.pair_multiplier === 'number' && <div className="slots-page__payout-item slots-page__payout-item--pair">
+            <div className="slots-page__payout-symbols" aria-hidden="true"><SlotSymbol value="🍒" /><SlotSymbol value="🍒" /><SlotSymbol value="🍋" /></div>
             <span>Любая пара</span>
-            <small>Третий символ отличается</small>
             <strong>×{game.pair_multiplier}</strong>
           </div>}
-        </div> : <p className="slots-paytable-note">Таблица выплат недоступна.</p>}
+        </div> : <p className="slots-page__paytable-note">Таблица выплат недоступна.</p>}
       </section>
     </div>
   )

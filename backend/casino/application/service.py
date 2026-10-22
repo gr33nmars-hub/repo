@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from threading import RLock
+from typing import Any
 
 from casino.application import commands as casino_commands
 from casino.application.ports import CasinoReadUnitOfWork, CasinoRepository
@@ -59,13 +60,13 @@ class CasinoService:
         self._revision = revision
         self._server_seed = server_seed
 
-    def refresh_state(self) -> dict:
+    def refresh_state(self) -> dict[str, Any]:
         """Refresh this process's snapshot before serving a read request."""
         with self._lock, self.repository.read_transaction() as unit_of_work:
             self._refresh_if_stale(unit_of_work)
             return self.state()
 
-    def state(self) -> dict:
+    def state(self) -> dict[str, Any]:
         with self._lock:
             return casino_state(
                 self.player,
@@ -83,7 +84,7 @@ class CasinoService:
 
     def _cached_request(
         self, request_key: str, signature: str, unit_of_work: CasinoReadUnitOfWork
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         if not request_key or len(request_key) > 128:
             raise InvalidCasinoCommand("Нужен уникальный ключ запроса")
         return unit_of_work.get_request_response(request_key, signature=signature)
@@ -105,7 +106,7 @@ class CasinoService:
         request_key: str,
         client_seed: str = "",
         expected_server_seed_hash: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         return casino_commands.play_game(
             self, game_id, bet, choice, request_key, client_seed, expected_server_seed_hash
         )
@@ -117,7 +118,7 @@ class CasinoService:
         client_seed: str = "",
         expected_server_seed_hash: str | None = None,
         legacy_signature_compatible: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         return casino_commands.start_blackjack(
             self,
             bet,
@@ -127,7 +128,7 @@ class CasinoService:
             legacy_signature_compatible,
         )
 
-    def blackjack_action(self, action: BlackjackAction, request_key: str) -> dict:
+    def blackjack_action(self, action: BlackjackAction, request_key: str) -> dict[str, Any]:
         return casino_commands.blackjack_action(self, action, request_key)
 
     def refill(self, request_key: str) -> int:

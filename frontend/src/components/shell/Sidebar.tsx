@@ -17,59 +17,64 @@ interface SidebarProps {
   isBusy: boolean
   canRefill: boolean
   onNavigate: (room: RoomRoute) => void
+  onRoomIntent: (room: RoomRoute) => void
   onRefill: () => void
 }
 
-export function Sidebar({ room, player, balanceHeld, isBusy, canRefill, onNavigate, onRefill }: SidebarProps) {
+export function Sidebar({ room, player, balanceHeld, isBusy, canRefill, onNavigate, onRoomIntent, onRefill }: SidebarProps) {
   return (
     <aside className="sidebar" aria-label="Навигация NOIR Casino Club">
-      <button className="sidebar-brand" onClick={() => onNavigate('lobby')} aria-label="Лобби NOIR Casino Club">
-        <span className="sidebar-wordmark" aria-hidden="true"><span>N</span><span className="sidebar-wordmark-o">O</span><span>IR</span></span>
+      <button className="sidebar__brand" onClick={() => onNavigate('lobby')} aria-label="Лобби NOIR Casino Club">
+        <span className="sidebar__wordmark" aria-hidden="true"><span>N</span><span className="sidebar__wordmark-o">O</span><span>IR</span></span>
       </button>
 
-      <nav className="sidebar-navigation" aria-label="Игровые комнаты">
-        <span className="sidebar-nav-heading">КОМНАТЫ</span>
+      <nav className="sidebar__navigation" aria-label="Игровые комнаты">
+        <span className="sidebar__nav-heading">КОМНАТЫ</span>
         {tableRoutes.map((route) => (
           <button
-            className={`sidebar-nav-item${room === route.id ? ' is-current' : ''}`}
+            className={`sidebar__nav-item${room === route.id ? ' sidebar__nav-item--current' : ''}`}
             key={route.id}
             type="button"
             aria-current={room === route.id ? 'page' : undefined}
             onClick={() => onNavigate(route.id)}
+            onPointerEnter={() => onRoomIntent(route.id)}
+            onFocus={() => onRoomIntent(route.id)}
           >
             {route.game
-              ? <GameMark className="sidebar-nav-icon sidebar-nav-game-mark" game={route.game} />
-              : <Icon className="sidebar-nav-icon" name={route.icon ?? 'home'} />}
+              ? <GameMark className="sidebar__nav-icon sidebar__nav-game-mark" game={route.game} />
+              : <Icon className="sidebar__nav-icon" name={route.icon ?? 'home'} />}
             <span>{route.label}</span>
-            {room === route.id && <span className="sidebar-nav-active-mark" aria-hidden="true" />}
+            {room === route.id && <span className="sidebar__nav-active-mark" aria-hidden="true" />}
           </button>
         ))}
 
         <button
-          className={`sidebar-nav-item${room === 'history' ? ' is-current' : ''}`}
+          className={`sidebar__nav-item${room === 'history' ? ' sidebar__nav-item--current' : ''}`}
           type="button"
           aria-current={room === 'history' ? 'page' : undefined}
           onClick={() => onNavigate('history')}
+          onPointerEnter={() => onRoomIntent('history')}
+          onFocus={() => onRoomIntent('history')}
         >
-          <Icon className="sidebar-nav-icon" name="history" />
+          <Icon className="sidebar__nav-icon" name="history" />
           <span>История</span>
-          {room === 'history' && <span className="sidebar-nav-active-mark" aria-hidden="true" />}
+          {room === 'history' && <span className="sidebar__nav-active-mark" aria-hidden="true" />}
         </button>
       </nav>
 
-      <div className="sidebar-footer">
+      <div className="sidebar__footer">
         {player ? (
-          <div className={`sidebar-wallet${balanceHeld ? ' is-held' : ''}`} role="status" aria-label={`Баланс: ${player.balance.toLocaleString('ru-RU')} фишек${balanceHeld ? ', обновится после остановки барабанов' : ''}`}>
+          <div className={`sidebar__wallet${balanceHeld ? ' sidebar__wallet--held' : ''}`} role="status" aria-label={`Баланс: ${player.balance.toLocaleString('ru-RU')} фишек${balanceHeld ? ', обновится после остановки барабанов' : ''}`}>
             <Icon name="coin" />
-            <span className="sidebar-wallet-copy">
+            <span className="sidebar__wallet-copy">
               <small>{balanceHeld ? 'БАЛАНС · ОЖИДАЕТ ОСТАНОВКИ' : 'БАЛАНС'}</small>
-              <span className="sidebar-wallet-value"><strong key={player.balance}>{player.balance.toLocaleString('ru-RU')}</strong><span className="sidebar-wallet-unit">ФИШЕК</span></span>
+              <span className="sidebar__wallet-value"><strong key={player.balance}>{player.balance.toLocaleString('ru-RU')}</strong><span className="sidebar__wallet-unit">ФИШЕК</span></span>
             </span>
           </div>
         ) : (
-          <div className="sidebar-wallet sidebar-wallet--loading" role="status" aria-label="Баланс загружается"><span /><span /></div>
+          <div className="sidebar__wallet sidebar__wallet--loading" role="status" aria-label="Баланс загружается"><span /><span /></div>
         )}
-        {canRefill && <button className="sidebar-refill" type="button" disabled={isBusy} onClick={onRefill}>{isBusy ? 'Пополняем…' : 'Пополнить баланс'}</button>}
+        {canRefill && <button className="sidebar__refill" type="button" disabled={isBusy} onClick={onRefill}>{isBusy ? 'Пополняем…' : 'Пополнить баланс'}</button>}
       </div>
     </aside>
   )

@@ -15,8 +15,21 @@ export function useCasino() {
   const [error, setError] = useState<string | null>(null)
   const [retryAvailable, setRetryAvailable] = useState(false)
   const retryOperation = useRef<(() => Promise<void>) | null>(null)
+  const operationRunning = useRef(false)
 
-  const refresh = useCallback(async () => {
+  const beginOperation = useCallback(() => {
+    if (operationRunning.current) return false
+    operationRunning.current = true
+    setBusy(true)
+    return true
+  }, [])
+
+  const finishOperation = useCallback(() => {
+    operationRunning.current = false
+    setBusy(false)
+  }, [])
+
+  const loadState = useCallback(async () => {
     try {
       setState(await casinoApi.state())
       const pending = hasPendingMutation()
@@ -29,12 +42,21 @@ export function useCasino() {
     }
   }, [])
 
+  const refresh = useCallback(async () => {
+    if (!beginOperation()) return
+    try {
+      await loadState()
+    } finally {
+      finishOperation()
+    }
+  }, [beginOperation, finishOperation, loadState])
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh()
   }, [refresh])
 
-  const handleMutationFailure = (
+  const handleMutationFailure = useCallback((
     caught: unknown,
     fallback: string,
     retry: () => Promise<void>,
@@ -53,10 +75,10 @@ export function useCasino() {
       : retry
     setRetryAvailable(retryOperation.current !== null || hasPendingMutation())
     setError(caught instanceof Error ? caught.message : fallback)
-  }
+  }, [])
 
   const act = useCallback(async function runStateOperation(operation: () => Promise<CasinoState>) {
-    setBusy(true)
+    if (!beginOperation()) return false
     setError(null)
     try {
       const next = await operation()
@@ -73,9 +95,9 @@ export function useCasino() {
       )
       return false
     } finally {
-      setBusy(false)
+      finishOperation()
     }
-  }, [])
+  }, [beginOperation, finishOperation, handleMutationFailure])
 
   const play = useCallback(async function runGame(
     game: Exclude<GameId, 'blackjack'>,
@@ -83,7 +105,7 @@ export function useCasino() {
     choice = '',
     expectedServerSeedHash?: string,
   ) {
-    setBusy(true)
+    if (!beginOperation()) return null
     setError(null)
     try {
       const response = await casinoApi.play(game, bet, choice, expectedServerSeedHash)
@@ -102,9 +124,9 @@ export function useCasino() {
       )
       return null
     } finally {
-      setBusy(false)
+      finishOperation()
     }
-  }, [])
+  }, [beginOperation, finishOperation, handleMutationFailure])
 
   const startBlackjack = useCallback((bet: number, expectedHash?: string) =>
     act(() => casinoApi.startBlackjack(bet, expectedHash)), [act])
@@ -113,7 +135,7 @@ export function useCasino() {
     act(() => casinoApi.blackjackAction(action)), [act])
 
   const refill = useCallback(async function runRefill() {
-    setBusy(true)
+    if (!beginOperation()) return false
     setError(null)
     try {
       const { balance } = await casinoApi.refill()
@@ -133,30 +155,35 @@ export function useCasino() {
       )
       return false
     } finally {
-      setBusy(false)
+      finishOperation()
     }
-  }, [])
+  }, [beginOperation, finishOperation, handleMutationFailure])
 
   const retry = useCallback(async () => {
     const operation = retryOperation.current
     if (operation) await operation()
     else {
-      let retryError: string | undefined
+      if (!beginOperation()) return
       try {
-        await retryPendingMutation()
-      } catch (caught) {
-        const reconciled = reconciledConflictState(caught)
-        if (reconciled) {
-          setState(reconciled)
-          retryError = 'Состояние обновлено. Проверь игру и повтори действие при необходимости.'
-        } else {
-          retryError = caught instanceof Error ? caught.message : 'Не удалось повторить запрос.'
+        let retryError: string | undefined
+        try {
+          await retryPendingMutation()
+        } catch (caught) {
+          const reconciled = reconciledConflictState(caught)
+          if (reconciled) {
+            setState(reconciled)
+            retryError = 'Состояние обновлено. Проверь игру и повтори действие при необходимости.'
+          } else {
+            retryError = caught instanceof Error ? caught.message : 'Не удалось повторить запрос.'
+          }
         }
+        await loadState()
+        if (retryError) setError(retryError)
+      } finally {
+        finishOperation()
       }
-      await refresh()
-      if (retryError) setError(retryError)
     }
-  }, [refresh])
+  }, [beginOperation, finishOperation, loadState])
 
   return {
     state,

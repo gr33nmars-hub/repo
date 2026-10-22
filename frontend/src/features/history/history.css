@@ -1,47 +1,35 @@
-.history-page { max-width: 1160px; margin: 0 auto; }
-.history-count { min-width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #555e51; color: #dedacb; font: 11px var(--mono); }
-.history-round-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-rule); }
-.history-round { min-height: 89px; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(265px, auto); align-items: center; gap: 18px; padding: 14px 9px; border-bottom: 1px solid var(--color-rule); }
-.history-round-main { min-width: 0; display: grid; gap: 4px; }
-.history-round-main strong { overflow: hidden; color: var(--color-ink); font-size: 13px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
-.history-round-main > span { overflow-wrap: anywhere; color: #d2d3c9; font-size: 11px; }
-.history-round-main time { color: var(--color-muted); font-size: 9px; }
-.history-round-amounts { display: grid; grid-template-columns: repeat(3, minmax(68px, 1fr)); gap: 12px; margin: 0; }
-.history-round-amounts > div { display: grid; gap: 5px; }
-.history-round-amounts dt { color: var(--color-muted); font-size: 9px; }
-.history-round-amounts dd { margin: 0; color: #deded5; font: 11px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.history-round-amounts .is-positive dd { color: var(--color-emerald); }
-.history-round-amounts .is-negative dd { color: var(--color-danger); }
-.history-state { min-height: 350px; display: grid; align-content: center; justify-items: start; gap: 10px; padding: 20px 0; }
-.history-state h1, .history-state h2 { margin: 0; color: var(--color-ink); font-size: 22px; font-weight: 500; }
-.history-state p { max-width: 58ch; margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
-.history-state--error .game-action-secondary { margin-top: 4px; }
-.history-state--loading h1 { font-size: 20px; }
-.history-loading-lines { width: min(530px, 100%); display: grid; gap: 11px; margin-top: 8px; }
-.history-loading-lines span { height: 1px; display: block; background: #333a33; }
-.history-loading-lines span:nth-child(2) { width: 78%; }
-.history-loading-lines span:nth-child(3) { width: 56%; }
-.history-state--empty { min-height: 300px; }
+.history-page { max-width: 1240px; margin: 0 auto; }
+.history-page__count { min-width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #555e51; color: #e2d2a6; font: 11px var(--sans); border-color: #746342; border-radius: 9px; background: #1c211a; }
+.history-page__round-list { margin: 0; padding: 0; list-style: none; border-top: 0; }
+.history-page__round { min-height: 96px; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(265px, auto); align-items: center; gap: 18px; padding: 14px 9px; border-bottom: 1px solid var(--color-rule); border-bottom-color: #2b332d; transition: background-color 140ms ease; }
+.history-page__round-main { min-width: 0; display: grid; gap: 4px; }
+.history-page__round-main strong { overflow: hidden; color: var(--color-ink); font-size: 14px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.history-page__round-main > span { overflow-wrap: anywhere; color: #d2d1c4; font-size: 12px; }
+.history-page__round-main time { color: #a7aaa0; font-size: 10px; }
+.history-page__round-amounts { display: grid; grid-template-columns: repeat(3, minmax(68px, 1fr)); gap: 12px; margin: 0; }
+.history-page__round-amounts > div { display: grid; gap: 5px; }
+.history-page__round-amounts dt { color: #afb0a3; font-size: 10px; }
+.history-page__round-amounts dd { margin: 0; color: #deded5; font: 11px var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
+.history-page__round-amount--positive dd { color: var(--color-emerald); }
+.history-page__round-amount--negative dd { color: var(--color-danger); }
+.history-page__state { min-height: 350px; display: grid; align-content: center; justify-items: start; gap: 10px; padding: 20px 0; }
+.history-page__state h1, .history-page__state h2 { margin: 0; color: var(--color-ink); font-size: 22px; font-weight: 500; }
+.history-page__state p { max-width: 58ch; margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.history-page__state--error .game-action--secondary { margin-top: 4px; }
+.history-page__state--loading h1 { font-size: 20px; }
+.history-page__loading-lines { width: min(530px, 100%); display: grid; gap: 11px; margin-top: 8px; }
+.history-page__loading-lines span { height: 1px; display: block; background: #333a33; }
+.history-page__loading-lines span:nth-child(2) { width: 78%; }
+.history-page__loading-lines span:nth-child(3) { width: 56%; }
+.history-page__state--empty { min-height: 300px; }
 
 @media (max-width: 1100px) {
-  .history-round { grid-template-columns: minmax(180px, 1fr) minmax(230px, auto); gap: 13px; }
-  .history-round-amounts { gap: 8px; }
+  .history-page__round { grid-template-columns: minmax(180px, 1fr) minmax(230px, auto); gap: 13px; }
+  .history-page__round-amounts { gap: 8px; }
 }
 @media (max-width: 760px) {
-  .history-round { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-inline: 2px; }
-  .history-round-amounts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .history-page__round { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-inline: 2px; }
+  .history-page__round-amounts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-.history-page { max-width: 1240px; }
-.history-count { min-width: 42px; height: 42px; border-color: #746342; border-radius: 9px; background: #1c211a; color: #e2d2a6; }
-.history-round-list { border-top-color: #4b4738; }
-.history-round { min-height: 96px; border-bottom-color: #343a32; transition: background-color 140ms ease; }
-
-.history-round-list { border-top: 0; }
-.history-round { border-bottom-color: #2b332d; }
-.history-round:hover { background: #171d18; }
-.history-round-main strong { font-size: 14px; }
-.history-round-main > span { color: #d2d1c4; font-size: 12px; }
-.history-round-main time { color: #a7aaa0; font-size: 10px; }
-.history-round-amounts dt { color: #afb0a3; font-size: 10px; }
-.history-round-amounts dd { font-size: 12px; }
+.history-page__round:hover { background: #171d18; }

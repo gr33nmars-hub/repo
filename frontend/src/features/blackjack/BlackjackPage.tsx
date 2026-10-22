@@ -15,12 +15,12 @@ interface Props {
 }
 
 const fmt = (value: number) => value.toLocaleString('ru-RU')
-const actionLabels: { action: BlackjackAction; title: string; hint: string; symbol: string; key: string }[] = [
-  { action: 'hit', title: 'Взять карту', hint: 'Продолжить руку', symbol: '+', key: '1' },
-  { action: 'stand', title: 'Остановиться', hint: 'Ход дилера', symbol: '■', key: '2' },
-  { action: 'double', title: 'Удвоить', hint: 'Ещё одна карта', symbol: '×2', key: '3' },
-  { action: 'split', title: 'Разделить', hint: 'Играть две руки', symbol: '↔', key: '4' },
-  { action: 'surrender', title: 'Сдаться', hint: 'Вернётся половина ставки', symbol: '½', key: '5' },
+const actionLabels: { action: BlackjackAction; title: string; key: string }[] = [
+  { action: 'hit', title: 'Взять карту', key: '1' },
+  { action: 'stand', title: 'Остановиться', key: '2' },
+  { action: 'double', title: 'Удвоить', key: '3' },
+  { action: 'split', title: 'Разделить', key: '4' },
+  { action: 'surrender', title: 'Сдаться', key: '5' },
 ]
 const handStatus: Record<string, string> = {
   playing: 'Твой ход', standing: 'Ждёт дилера', won: 'Победа', lost: 'Проигрыш',
@@ -73,6 +73,12 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
   const maximumEven = cap - cap % 2
   const canBet = maximumEven >= minimumEven
   const valid = Number.isSafeInteger(amount) && amount >= minimumEven && amount <= maximumEven && amount % 2 === 0
+  const betError = valid ? ''
+    : !Number.isSafeInteger(amount) ? 'Укажи целое количество фишек.'
+    : !canBet ? `Нужно не менее ${fmt(minimumEven)} фишек.`
+    : amount < minimumEven ? `Минимальная ставка — ${fmt(minimumEven)}.`
+    : amount > cap ? `Доступно для ставки: ${fmt(cap)} фишек.`
+    : 'Для блэкджека нужна чётная ставка.'
   const setChip = (value: number) => {
     const current = valid ? amount : 0
     onAmountChange(String(Math.min(maximumEven, Math.max(minimumEven, current + value))))
@@ -90,57 +96,63 @@ export function BlackjackPage({ state, amount, minimum, maximum, busy, onAmountC
   }
 
   return <div className="blackjack-page">
-    <header className="blackjack-heading">
-      <div className="blackjack-heading-copy">
-        <h1>Блэкджек</h1>
+    <header className="blackjack-page__heading">
+      <div className="blackjack-page__heading-copy">
+        <h1 className="blackjack-page__heading-title">Блэкджек</h1>
       </div>
     </header>
 
-    <div className="blackjack-room-layout">
-      <section className="blackjack-table" aria-label="Стол блэкджека">
-        <div className="blackjack-dealer-area" role="group" aria-label={`Карты дилера${round?.dealer_score != null ? `, ${round.dealer_score} очков` : ''}`}>
-          <div className="blackjack-area-label"><span>ДИЛЕР</span><strong>{round ? round.dealer_score ?? '?' : '—'}</strong></div>
-          <div className={`blackjack-dealer-cards${round && round.dealer_cards.length > 5 ? ' is-long' : ''}`}>
-            {round ? round.dealer_cards.map((card, index) => <PlayingCard key={`dealer-${index}-${card}`} card={card} animate order={index} />) : <div className="blackjack-empty-cards"><span>♠</span><small>Дилер ждёт ставку</small></div>}
+    <div className="blackjack-page__room-layout">
+      <section className="blackjack-page__table" aria-label="Стол блэкджека">
+        <div className="blackjack-page__dealer-area" role="group" aria-label={`Карты дилера${round?.dealer_score != null ? `, ${round.dealer_score} очков` : ''}`}>
+          <div className="blackjack-page__area-label"><span>ДИЛЕР</span><strong>{round ? round.dealer_score ?? '?' : '—'}</strong></div>
+          <div className={`blackjack-page__dealer-cards${round && round.dealer_cards.length > 5 ? ' blackjack-page__dealer-cards--long' : ''}`}>
+            {round ? round.dealer_cards.map((card, index) => <PlayingCard key={`dealer-${index}-${card}`} card={card} />) : <div className="blackjack-page__empty-cards"><small>Дилер ждёт ставку</small></div>}
           </div>
         </div>
-        <div className="blackjack-table-rules"><strong>БЛЭКДЖЕК · {tableRules.blackjackPayout}</strong><span>{tableRules.dealerSoft17 === 'hit' ? 'ДИЛЕР БЕРЁТ МЯГКИЕ 17' : 'ДИЛЕР ОСТАНАВЛИВАЕТСЯ НА 17'}</span></div>
-        <div className={`blackjack-player-area${hands.length > 1 ? ' has-split' : ''}`} role="group" aria-label="Руки игрока">
+        <div className="blackjack-page__table-rules"><strong>БЛЭКДЖЕК · {tableRules.blackjackPayout}</strong><span>{tableRules.dealerSoft17 === 'hit' ? 'ДИЛЕР БЕРЁТ МЯГКИЕ 17' : 'ДИЛЕР ОСТАНАВЛИВАЕТСЯ НА 17'}</span></div>
+        <div className={`blackjack-page__player-area${hands.length > 1 ? ' blackjack-page__player-area--split' : ''}`} role="group" aria-label="Руки игрока">
           {hands.length ? hands.map((hand, index) => {
             const current = round?.status === 'playing' && index === activeIndex
-            return <div className={`blackjack-player-hand${current ? ' is-active' : ''}`} key={index} role="group" aria-label={`Рука ${index + 1}, ${hand.score} очков, ставка ${hand.bet}${current ? ', ваш ход' : `, ${handStatus[hand.status] ?? hand.status}`}`}>
-              <div className="blackjack-player-hand-title"><span>{hands.length > 1 ? `РУКА ${index + 1}` : 'ТВОЯ РУКА'}</span><strong>{hand.score}</strong></div>
-              <div className={`blackjack-player-cards${hand.cards.length > 5 ? ' is-long' : ''}`}>{hand.cards.map((card, cardIndex) => <PlayingCard key={`${index}-${cardIndex}-${card}`} card={card} animate order={cardIndex} />)}</div>
+            return <div className={`blackjack-page__player-hand${current ? ' blackjack-page__player-hand--active' : ''}`} key={index} role="group" aria-label={`Рука ${index + 1}, ${hand.score} очков, ставка ${hand.bet}${current ? ', ваш ход' : `, ${handStatus[hand.status] ?? hand.status}`}`}>
+              <div className="blackjack-page__player-hand-title"><span>{hands.length > 1 ? `РУКА ${index + 1}` : 'ТВОЯ РУКА'}</span><strong>{hand.score}</strong></div>
+              <div className={`blackjack-page__player-cards${hand.cards.length > 5 ? ' blackjack-page__player-cards--long' : ''}`}>{hand.cards.map((card, cardIndex) => <PlayingCard key={`${index}-${cardIndex}-${card}`} card={card} />)}</div>
             </div>
-          }) : <div className="blackjack-betting-spot"><span>ПОСТАВЬ<br />ФИШКИ</span><strong>{valid ? fmt(amount) : '—'}</strong></div>}
+          }) : <div className="blackjack-page__betting-spot"><span>ПОСТАВЬ<br />ФИШКИ</span><strong>{valid ? fmt(amount) : '—'}</strong></div>}
         </div>
       </section>
-      {round && !inRound && <div className={`blackjack-result-banner is-${round.status}`} role="status"><strong>{round.message}</strong>{latest && <span>Выплата {fmt(latest.payout)} · итог {latest.profit > 0 ? '+' : ''}{fmt(latest.profit)} фишек</span>}</div>}
+      {round && !inRound && <div className={`blackjack-page__result-banner blackjack-page__result-banner--${round.status}`} role="status"><strong>{round.message}</strong>{latest && <span>Выплата {fmt(latest.payout)} · итог {latest.profit > 0 ? '+' : ''}{fmt(latest.profit)} фишек</span>}</div>}
 
-      <aside className={`blackjack-console${inRound ? ' is-playing' : ''}`} aria-label="Игровые действия">
-        {inRound ? <div className="blackjack-console-summary">
-          <h2>{insurance ? 'Страховка?' : `Рука ${activeIndex + 1} · ${active?.score ?? round?.player_score} очков`}</h2>
-          {insurance && <p className="blackjack-console-hint">У дилера туз. Страховка стоит половину ставки и платит {tableRules.insurancePayout} при блэкджеке дилера.</p>}
-          <div className="blackjack-stake-ledger"><span>Ставка</span><strong>{fmt(hands.reduce((total, hand) => total + hand.bet, 0) + (round.insurance_bet ?? 0))}</strong><small>фишек{(round.insurance_bet ?? 0) > 0 ? ' · включая страховку' : ''}</small></div>
-        </div> : <div className="blackjack-console-summary">
-          <h2>{round ? 'Следующий раунд' : 'Ставка'}</h2>
+      <aside className={`blackjack-page__console${inRound ? ' blackjack-page__console--playing' : ''}`} aria-label="Игровые действия">
+        {inRound && <div className="blackjack-page__console-summary">
+          <h2>{insurance ? 'Страховка' : hands.length > 1 ? `Рука ${activeIndex + 1} из ${hands.length}` : 'Твой ход'}</h2>
+          {busy && <span className="blackjack-page__request-status" role="status">Выполняем ход…</span>}
+          <div className="blackjack-page__stake-ledger"><span>Ставка</span><strong>{fmt(hands.reduce((total, hand) => total + hand.bet, 0) + (round.insurance_bet ?? 0))}</strong><small>фишек{(round.insurance_bet ?? 0) > 0 ? ' · включая страховку' : ''}</small></div>
         </div>}
         {inRound ? <>
-          {insurance ? <div className="blackjack-insurance-actions">
-            <button type="button" className="blackjack-decision is-primary" disabled={busy || !available.includes('insurance')} onClick={() => doAction('insurance')}><span className="blackjack-decision-key">1</span><strong>Взять страховку</strong><small>+{fmt(round.bet / 2)} фишек</small></button>
-            <button type="button" className="blackjack-decision" disabled={busy || !available.includes('decline_insurance')} onClick={() => doAction('decline_insurance')}><span className="blackjack-decision-key">2</span><strong>Без страховки</strong><small>Продолжить</small></button>
-          </div> : <div className="blackjack-actions" role="group" aria-label="Действия блэкджека">{actionLabels.map(({ action, title, hint, symbol, key }) => {
+          {insurance && <p className="blackjack-page__console-hint">У дилера туз. Страховка: {fmt(round.bet / 2)} фишек, выплата {tableRules.insurancePayout} при блэкджеке дилера.</p>}
+          {insurance ? <div className="blackjack-page__insurance-actions">
+            <button type="button" className="blackjack-page__decision blackjack-page__decision--primary" disabled={busy || !available.includes('insurance')} onClick={() => doAction('insurance')}><strong>Взять страховку</strong><kbd className="blackjack-page__decision-key">1</kbd></button>
+            <button type="button" className="blackjack-page__decision" disabled={busy || !available.includes('decline_insurance')} onClick={() => doAction('decline_insurance')}><strong>Без страховки</strong><kbd className="blackjack-page__decision-key">2</kbd></button>
+          </div> : <div className="blackjack-page__actions" role="group" aria-label="Действия блэкджека">{actionLabels.map(({ action, title, key }) => {
             const enabled = available.includes(action)
             if (!enabled) return null
-            return <button key={action} type="button" className={`blackjack-decision action-${action}${action === 'hit' ? ' is-primary' : ''}`} disabled={busy} onClick={() => doAction(action)}><span className="blackjack-decision-icon" aria-hidden="true">{symbol}</span><span className="blackjack-decision-copy"><strong>{title}</strong><small>{hint}</small></span><kbd className="blackjack-decision-key">{key}</kbd></button>
+            const hint = action === 'double' ? `+${fmt(active?.bet ?? round.bet)} · одна карта`
+              : action === 'split' ? `+${fmt(active?.bet ?? round.bet)} · новая рука`
+              : action === 'surrender' ? 'Возврат половины ставки' : ''
+            return <button key={action} type="button" className={`blackjack-page__decision blackjack-page__decision--${action}${action === 'hit' ? ' blackjack-page__decision--primary' : ''}`} disabled={busy} onClick={() => doAction(action)}><span className="blackjack-page__decision-copy"><strong>{title}</strong>{hint && <small>{hint}</small>}</span><kbd className="blackjack-page__decision-key">{key}</kbd></button>
           })}</div>}
-        </> : <form className="blackjack-bet-form" onSubmit={(event) => { event.preventDefault(); if (valid && !busy) startRound() }}>
-          <label htmlFor="blackjack-wager">Размер ставки</label>
-          <div className="blackjack-wager-input"><input id="blackjack-wager" type="number" min={minimumEven} max={maximumEven} step="2" inputMode="numeric" value={amount || ''} onChange={(event) => onAmountChange(event.target.value)} aria-invalid={amount > 0 && !valid} /><span>ФИШЕК</span></div>
-          <div className="blackjack-chip-rack" aria-label="Добавить фишки">{[10, 20, 50, 100].map((value) => <button key={value} className="blackjack-chip-button" type="button" disabled={busy || !canBet} onClick={() => setChip(value)}>+{value}</button>)}</div>
-          <div className="blackjack-bet-helpers"><button type="button" aria-label="Уменьшить ставку вдвое" disabled={busy || !canBet} onClick={() => scaleBet(.5)}>½</button><button type="button" aria-label="Увеличить ставку вдвое" disabled={busy || !canBet} onClick={() => scaleBet(2)}>×2</button><span>Баланс {fmt(state.player.balance)}</span></div>
-          <p className={`blackjack-bet-feedback${valid ? '' : ' is-error'}`} aria-live="polite">{valid ? '' : !canBet ? `Нужно не менее ${fmt(minimumEven)} фишек` : amount < minimumEven ? `Минимальная ставка — ${fmt(minimumEven)}` : amount > maximumEven ? 'Ставка выше доступного баланса или лимита' : 'Ставка должна быть чётной'}</p>
-          <button className="blackjack-deal-button" type="submit" disabled={busy || !valid}>{busy ? 'Раздаём…' : 'РАЗДАТЬ КАРТЫ'}<span aria-hidden="true">→</span></button>
+        </> : <form className="blackjack-page__bet-form" onSubmit={(event) => { event.preventDefault(); if (valid && !busy) startRound() }}>
+          <div className="blackjack-page__bet-field">
+            <label htmlFor="blackjack-wager">Ставка</label>
+            <div className="blackjack-page__wager-input"><input id="blackjack-wager" type="number" min={minimumEven} max={maximumEven} step="2" inputMode="numeric" value={amount || ''} disabled={busy} onChange={(event) => onAmountChange(event.target.value)} aria-invalid={amount > 0 && !valid} aria-describedby="blackjack-bet-feedback" /><span>фишек</span></div>
+          </div>
+          <div className="blackjack-page__quick-bets">
+            <div className="blackjack-page__chip-rack" aria-label="Добавить фишки">{[10, 20, 50, 100].map((value) => <button key={value} className="blackjack-page__chip-button" type="button" disabled={busy || !canBet} onClick={() => setChip(value)}>+{value}</button>)}</div>
+            <div className="blackjack-page__bet-helpers"><button type="button" aria-label="Уменьшить ставку вдвое" disabled={busy || !canBet} onClick={() => scaleBet(.5)}>½</button><button type="button" aria-label="Увеличить ставку вдвое" disabled={busy || !canBet} onClick={() => scaleBet(2)}>×2</button></div>
+          </div>
+          <button className="game-action--primary blackjack-page__deal-button" type="submit" disabled={busy || !valid}>{busy ? 'Раздаём…' : 'Раздать карты'}</button>
+          <div className="blackjack-page__bet-feedback" id="blackjack-bet-feedback" aria-live="polite">{betError && <span>{betError}</span>}<small>Доступно: {fmt(cap)} фишек · ставка чётным числом</small></div>
         </form>}
       </aside>
     </div>

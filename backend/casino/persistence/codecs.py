@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from typing import Any
 
 from casino.domain.blackjack import BlackjackSnapshot
 from casino.domain.models import GameResult, Player
@@ -20,7 +21,7 @@ class CasinoSaveCodec:
         )
 
     @staticmethod
-    def encode_result(round_: GameResult) -> dict:
+    def encode_result(round_: GameResult) -> dict[str, Any]:
         result = asdict(round_)
         result["profit"] = round_.profit
         for key in ("symbols", "reel_stops", "fairness", "round_id"):
@@ -32,14 +33,14 @@ class CasinoSaveCodec:
         return result
 
     @staticmethod
-    def decode_history(value: str) -> list[dict]:
+    def decode_history(value: str) -> list[dict[str, Any]]:
         decoded = json.loads(value)
         if not isinstance(decoded, list) or any(not isinstance(item, dict) for item in decoded):
             raise ValueError("Saved round history must be a list of objects")
         return decoded
 
     @staticmethod
-    def decode_result(data: dict) -> GameResult:
+    def decode_result(data: dict[str, Any]) -> GameResult:
         if not isinstance(data, dict):
             raise ValueError("Данные результата игры должны быть объектом-словарем")
         required_text = ("game_id", "game_name", "message")
@@ -96,7 +97,7 @@ class CasinoSaveCodec:
         )
 
     @staticmethod
-    def decode_player(data: dict) -> Player:
+    def decode_player(data: dict[str, Any]) -> Player:
         if not isinstance(data, dict):
             raise ValueError("Профиль игрока должен быть объектом")
         name = data.get("name", "Гость")
@@ -129,11 +130,11 @@ class CasinoSaveCodec:
         return BlackjackStateCodec.decode(decoded)
 
     @staticmethod
-    def encode_object(value: dict) -> str:
+    def encode_object(value: dict[str, Any]) -> str:
         return json.dumps(value, ensure_ascii=False)
 
     @staticmethod
-    def decode_object(value: str) -> dict:
+    def decode_object(value: str) -> dict[str, Any]:
         decoded = json.loads(value)
         if not isinstance(decoded, dict):
             raise ValueError("Saved response must be an object")

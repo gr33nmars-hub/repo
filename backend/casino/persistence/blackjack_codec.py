@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import cast
+from typing import Any, cast
 
 from casino.domain.blackjack import (
     BLACKJACK_PHASES,
@@ -19,7 +19,7 @@ from casino.domain.shoe import Shoe
 
 class BlackjackStateCodec:
     @staticmethod
-    def encode(snapshot: BlackjackSnapshot | None) -> dict | None:
+    def encode(snapshot: BlackjackSnapshot | None) -> dict[str, Any] | None:
         if snapshot is None or snapshot.hand is None:
             return None
 
@@ -57,7 +57,7 @@ class BlackjackStateCodec:
         return state
 
     @classmethod
-    def decode(cls, state: dict | None) -> BlackjackSnapshot | None:
+    def decode(cls, state: dict[str, Any] | None) -> BlackjackSnapshot | None:
         if state is None:
             return None
         if type(state) is not dict:
@@ -73,7 +73,7 @@ class BlackjackStateCodec:
         return snapshot
 
     @classmethod
-    def _decode_versioned(cls, state: dict, game: Blackjack) -> BlackjackSnapshot:
+    def _decode_versioned(cls, state: dict[str, Any], game: Blackjack) -> BlackjackSnapshot:
         try:
             version = state.get("version")
             if (
@@ -182,7 +182,7 @@ class BlackjackStateCodec:
         )
 
     @classmethod
-    def _decode_legacy(cls, state: dict, game: Blackjack) -> BlackjackSnapshot:
+    def _decode_legacy(cls, state: dict[str, Any], game: Blackjack) -> BlackjackSnapshot:
         if (
             state.get("version") is not None
             or not isinstance(state.get("player_cards"), list)

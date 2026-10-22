@@ -1,9 +1,9 @@
 import { isTauri } from '@tauri-apps/api/core'
-import { Command, type Child } from '@tauri-apps/plugin-shell'
+import type { Child } from '@tauri-apps/plugin-shell'
 import { apiBase } from '../lib/apiConfig'
+import { waitForBackend } from './backendHealth'
 
 const API_TOKEN_HEADER = 'X-Astoria-Api-Token'
-const STARTUP_TIMEOUT_MS = 15_000
 let apiToken: string | undefined = import.meta.env.VITE_CASINO_API_TOKEN
 
 let backendStartup: Promise<void> | undefined
@@ -21,6 +21,7 @@ function createApiToken(): string {
 async function startSidecar(): Promise<void> {
   if (!isTauri() || !import.meta.env.PROD || backendProcess) return
 
+  const { Command } = await import('@tauri-apps/plugin-shell')
   apiToken = createApiToken()
   const command = Command.sidecar('binaries/astoria-api', [], {
     env: { ASTORIA_CASINO_API_TOKEN: apiToken },
@@ -44,23 +45,9 @@ async function startSidecar(): Promise<void> {
   )
 }
 
-async function waitForBackend(): Promise<void> {
-  const deadline = Date.now() + STARTUP_TIMEOUT_MS
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${apiBase}/api/health`, { headers: apiHeaders() })
-      if (response.ok && (await response.json()).status === 'ok') return
-    } catch {
-      // The local API may still be starting.
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 250))
-  }
-  throw new Error('Локальный сервер не запустился. Перезапусти приложение.')
-}
-
 export function prepareBackend(): Promise<void> {
   backendStartup ??= startSidecar()
-    .then(waitForBackend)
+    .then(() => waitForBackend(`${apiBase}/api/health`, apiHeaders()))
     .catch((error: unknown) => {
       backendStartup = undefined
       throw error

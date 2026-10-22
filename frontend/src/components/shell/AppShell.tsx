@@ -16,12 +16,13 @@ interface AppShellProps {
   error: string | null
   retryAvailable: boolean
   onNavigate: (room: RoomRoute) => void
+  onRoomIntent: (room: RoomRoute) => void
   onRetry: () => void
   onRefill: () => void
   children: ReactNode
 }
 
-export function AppShell({ room, player, balanceHeld = false, isConnected, isBusy, canRefill, error, retryAvailable, onNavigate, onRetry, onRefill, children }: AppShellProps) {
+export function AppShell({ room, player, balanceHeld = false, isConnected, isBusy, canRefill, error, retryAvailable, onNavigate, onRoomIntent, onRetry, onRefill, children }: AppShellProps) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">К содержимому</a>
@@ -32,22 +33,23 @@ export function AppShell({ room, player, balanceHeld = false, isConnected, isBus
         isBusy={isBusy}
         canRefill={canRefill}
         onNavigate={onNavigate}
+        onRoomIntent={onRoomIntent}
         onRefill={onRefill}
       />
 
-      <div className="app-main">
-        <main className="app-content" id="main-content" tabIndex={-1}>
+      <div className="app-shell__main">
+        <main className="app-shell__content" id="main-content" tabIndex={-1}>
           {error && error !== 'Сначала закончи текущую раздачу блэкджека' && isConnected && (
-            <div className="app-error-banner" role="alert">
-              <span className="app-error-mark" aria-hidden="true">!</span>
+            <div className="app-shell__error-banner" role="alert">
+              <span className="app-shell__error-mark" aria-hidden="true">!</span>
               <div><strong>Действие не выполнено</strong><p>{error}</p></div>
-              <button type="button" onClick={onRetry}>
+              <button type="button" disabled={isBusy} onClick={onRetry}>
                 <Icon name="retry" />
                 {retryAvailable ? 'Повторить действие' : 'Обновить состояние'}
               </button>
             </div>
           )}
-          <div className="app-room-view" key={room}>{children}</div>
+          <div className="app-shell__room-view" key={room}>{children}</div>
         </main>
       </div>
     </div>

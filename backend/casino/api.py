@@ -3,11 +3,14 @@ from __future__ import annotations
 import os
 import secrets
 from threading import Lock
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from casino.api_errors import install_error_handlers
 from casino.api_schemas import (
@@ -39,7 +42,7 @@ class _LazyCasinoService:
                 self._service = CasinoService(PlayerRepository())
             return self._service
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self.resolve(), name)
 
 
@@ -77,7 +80,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         return injected if injected is not None else _default_casino_service()
 
     @application.middleware("http")
-    async def require_api_token(request: Request, call_next):
+    async def require_api_token(request: Request, call_next: RequestResponseEndpoint) -> Response:
         expected_token = request.app.state.api_token
         if expected_token and request.url.path.startswith("/api/") and request.method != "OPTIONS":
             provided_token = request.headers.get("X-Astoria-Api-Token") or ""
@@ -104,14 +107,14 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         )
 
     @application.get("/api/health")
-    def health(request: Request) -> dict:
+    def health(request: Request) -> dict[str, Any]:
         response = {"status": "ok"}
         if request.app.state.api_instance_nonce is not None:
             response["instance_nonce"] = request.app.state.api_instance_nonce
         return response
 
     @application.post("/api/shutdown", include_in_schema=False, response_model=None)
-    def shutdown(request: Request) -> dict | JSONResponse:
+    def shutdown(request: Request) -> dict[str, Any] | JSONResponse:
         callback = request.app.state.request_shutdown
         if request.app.state.api_token is None or callback is None:
             return JSONResponse(
@@ -124,7 +127,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
     @application.get(
         "/api/state", response_model=CasinoStateResponse, response_model_exclude_unset=True
     )
-    def get_state(request: Request) -> dict:
+    def get_state(request: Request) -> dict[str, Any]:
         return service_for(request).refresh_state()
 
     @application.post(
@@ -132,7 +135,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         response_model=PlayResponseModel,
         response_model_exclude_unset=True,
     )
-    def play_game(game_id: str, body: PlayRequest, request: Request) -> dict:
+    def play_game(game_id: str, body: PlayRequest, request: Request) -> dict[str, Any]:
         return service_for(request).play(
             game_id,
             body.bet,
@@ -147,7 +150,7 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         response_model=CasinoStateResponse,
         response_model_exclude_unset=True,
     )
-    def start_blackjack(body: PlayRequest, request: Request) -> dict:
+    def start_blackjack(body: PlayRequest, request: Request) -> dict[str, Any]:
         return service_for(request).start_blackjack(
             body.bet,
             body.idempotency_key,
@@ -164,11 +167,11 @@ def create_app(casino_service: CasinoService | None = None) -> FastAPI:
         response_model=CasinoStateResponse,
         response_model_exclude_unset=True,
     )
-    def blackjack_action(body: BlackjackActionRequest, request: Request) -> dict:
+    def blackjack_action(body: BlackjackActionRequest, request: Request) -> dict[str, Any]:
         return service_for(request).blackjack_action(body.action, body.idempotency_key)
 
     @application.post("/api/refill", response_model=RefillResponse)
-    def refill(body: IdempotencyRequest, request: Request) -> dict:
+    def refill(body: IdempotencyRequest, request: Request) -> dict[str, Any]:
         return {"balance": service_for(request).refill(body.idempotency_key)}
 
     return application

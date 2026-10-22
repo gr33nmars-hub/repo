@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import uuid4
 
 from casino.application.errors import IdempotencyConflict, StaleGameState
@@ -39,11 +39,11 @@ class CasinoCommandContext(Protocol):
 
     def _cached_request(
         self, request_key: str, signature: str, unit_of_work: CasinoUnitOfWork
-    ) -> dict | None: ...
+    ) -> dict[str, Any] | None: ...
 
     def _request_signature(self, operation: str, **payload: object) -> str: ...
 
-    def state(self) -> dict: ...
+    def state(self) -> dict[str, Any]: ...
 
     def _record(self, result: GameResult) -> None: ...
 
@@ -110,7 +110,7 @@ def play_game(
     request_key: str,
     client_seed: str = "",
     expected_server_seed_hash: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     with _command_transaction(service) as unit_of_work:
         signature = service._request_signature(
             "game.play",
@@ -162,7 +162,7 @@ def play_game(
         service.player.debit(bet)
         service.player.credit(result.payout)
         service._record(result)
-        response = {"result": game_result_view(result), "state": service.state()}
+        response: dict[str, object] = {"result": game_result_view(result), "state": service.state()}
         unit_of_work.save(
             service.player,
             service.blackjack.snapshot(),
@@ -186,7 +186,7 @@ def start_blackjack(
     client_seed: str = "",
     expected_server_seed_hash: str | None = None,
     legacy_signature_compatible: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     with _command_transaction(service) as unit_of_work:
         signature = service._request_signature(
             "blackjack.start",
@@ -252,7 +252,7 @@ def start_blackjack(
 
 def blackjack_action(
     service: CasinoCommandContext, action: BlackjackAction, request_key: str
-) -> dict:
+) -> dict[str, Any]:
     with _command_transaction(service) as unit_of_work:
         signature = service._request_signature("blackjack.action", action=action)
         cached = service._cached_request(request_key, signature, unit_of_work)

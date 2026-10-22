@@ -8,15 +8,17 @@ interface BetControlProps {
   busy: boolean
   disabled?: boolean
   evenOnly?: boolean
+  layout?: 'roulette' | 'slots'
   actionLabel: string
   onAmountChange: (value: string) => void
   onSubmit: () => void
 }
 
-export function BetControl({ amount, balance, minimum, maximum, busy, disabled = false, evenOnly = false, actionLabel, onAmountChange, onSubmit }: BetControlProps) {
+export function BetControl({ amount, balance, minimum, maximum, busy, disabled = false, evenOnly = false, layout, actionLabel, onAmountChange, onSubmit }: BetControlProps) {
   const inputId = useId()
   const feedbackId = useId()
   const available = Math.min(balance, maximum ?? balance)
+  const interactionDisabled = busy || disabled
   const increment = evenOnly ? Math.max(2, Math.ceil(minimum / 2) * 2) : Math.max(1, minimum)
   const valid = Number.isSafeInteger(amount)
     && amount >= minimum
@@ -31,10 +33,10 @@ export function BetControl({ amount, balance, minimum, maximum, busy, disabled =
   else if (evenOnly && amount % 2 !== 0) message = 'Для блэкджека нужна чётная ставка.'
 
   return (
-    <form className="game-bet-control" onSubmit={(event) => { event.preventDefault(); if (valid && !busy && !disabled) onSubmit() }}>
-      <div className="game-bet-field">
+    <form className={`game-bet-control${layout ? ` game-bet-control--${layout}` : ''}`} onSubmit={(event) => { event.preventDefault(); if (valid && !busy && !disabled) onSubmit() }}>
+      <div className="game-bet-control__field">
         <label htmlFor={inputId}>Ставка</label>
-        <div className="game-bet-input-wrap">
+        <div className="game-bet-control__input-wrap">
           <input
             id={inputId}
             type="number"
@@ -43,6 +45,7 @@ export function BetControl({ amount, balance, minimum, maximum, busy, disabled =
             max={available}
             step={evenOnly ? 2 : 1}
             value={amount || ''}
+            disabled={interactionDisabled}
             onChange={(event) => onAmountChange(event.target.value)}
             aria-describedby={feedbackId}
             aria-invalid={amount > 0 && !valid}
@@ -50,16 +53,16 @@ export function BetControl({ amount, balance, minimum, maximum, busy, disabled =
           <span>фишек</span>
         </div>
       </div>
-      <div className="game-bet-adjust" aria-label="Изменить ставку">
-        <button type="button" aria-label={`Уменьшить ставку на ${increment}`} disabled={busy || amount <= 0} onClick={() => onAmountChange(String(Math.max(0, amount - increment)))}>−</button>
-        <button type="button" aria-label={`Увеличить ставку на ${increment}`} disabled={busy || amount >= available} onClick={() => onAmountChange(String(Math.min(available, amount + increment)))}>+</button>
+      <div className="game-bet-control__adjust" aria-label="Изменить ставку">
+        <button type="button" aria-label={`Уменьшить ставку на ${increment}`} disabled={interactionDisabled || amount <= 0} onClick={() => onAmountChange(String(Math.max(0, amount - increment)))}>−</button>
+        <button type="button" aria-label={`Увеличить ставку на ${increment}`} disabled={interactionDisabled || amount >= available} onClick={() => onAmountChange(String(Math.min(available, amount + increment)))}>+</button>
       </div>
-      <div className="game-bet-note" id={feedbackId} aria-live="polite">
+      <div className="game-bet-control__note" id={feedbackId} aria-live="polite">
         {message && <span>{message}</span>}
         <small>Доступно: {available.toLocaleString('ru-RU')}</small>
       </div>
-      <button className="game-action-primary" type="submit" disabled={busy || disabled || !valid}>
-        {busy ? <><span className="game-button-progress" aria-hidden="true" />Запрос выполняется</> : actionLabel}
+      <button className="game-action--primary" type="submit" disabled={interactionDisabled || !valid}>
+        {busy ? <><span className="game-action__progress" aria-hidden="true" />Запрос выполняется</> : actionLabel}
       </button>
     </form>
   )

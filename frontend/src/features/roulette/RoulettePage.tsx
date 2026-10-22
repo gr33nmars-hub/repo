@@ -58,7 +58,8 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<RoundResult | null>(initialRound ?? null)
   const rotor = useRef<SVGGElement>(null)
-  const ball = useRef<HTMLDivElement>(null)
+  const ball = useRef<SVGGElement>(null)
+  const ballMarker = useRef<SVGCircleElement>(null)
   const frame = useRef<number | null>(null)
   const motionTimeout = useRef<number | null>(null)
   const angle = useRef(0)
@@ -66,9 +67,19 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
   const locked = useRef(false)
   const mounted = useRef(true)
   const finishMotion = useRef<(() => void) | null>(null)
+  const firstNumber = useRef(resultNumber(initialRound ?? null))
+
+  function draw(wheelDegrees: number, ballDegrees: number, radius = 144) {
+    angle.current = wheelDegrees
+    ballAngle.current = ballDegrees
+    if (rotor.current) rotor.current.style.transform = `rotate(${wheelDegrees}deg)`
+    if (ball.current) ball.current.style.transform = `rotate(${ballDegrees}deg)`
+    ballMarker.current?.setAttribute('cy', String(160 - radius))
+  }
 
   useEffect(() => {
     mounted.current = true
+    if (firstNumber.current !== null) draw((360 - pockets.indexOf(firstNumber.current) * step) % 360, 0, 112)
     return () => {
       mounted.current = false
       if (frame.current !== null) cancelAnimationFrame(frame.current)
@@ -77,20 +88,13 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
     }
   }, [])
 
-  function draw(wheelDegrees: number, ballDegrees: number) {
-    angle.current = wheelDegrees
-    ballAngle.current = ballDegrees
-    if (rotor.current) rotor.current.style.transform = `rotate(${wheelDegrees}deg)`
-    if (ball.current) ball.current.style.transform = `rotate(${ballDegrees}deg)`
-  }
-
   function freeSpin() {
     const started = performance.now()
     const firstWheel = angle.current
     const firstBall = ballAngle.current
     function tick(now: number) {
       const elapsed = now - started
-      draw(firstWheel + elapsed * 0.62, firstBall - elapsed * 0.95)
+      draw(firstWheel + elapsed * 0.3, firstBall - elapsed * 0.72)
       frame.current = requestAnimationFrame(tick)
     }
     frame.current = requestAnimationFrame(tick)
@@ -102,13 +106,22 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
     const firstBall = ballAngle.current
     const desired = (360 - pockets.indexOf(number) * step) % 360
     const remaining = (desired - ((firstWheel % 360) + 360) % 360 + 360) % 360
-    const lastWheel = firstWheel + 4 * 360 + remaining
-    const lastBall = firstBall - 3 * 360 - (((firstBall % 360) + 360) % 360)
-    const duration = 3600
+    const distance = remaining + (remaining < 270 ? 360 : 0)
+    const lastWheel = firstWheel + distance
+    // Match the running wheel's velocity, then decelerate without a speed jump.
+    const duration = 2 * distance / 0.3
+    const pocketAngle = pockets.indexOf(number) * step
+    const captureTime = duration * 0.82
+    const firstRelative = firstBall - firstWheel - pocketAngle
+    const relativeSpeed = -0.72 - 0.3
+    const lastRelative = Math.round((firstRelative + relativeSpeed * captureTime / 2) / 360) * 360
+    const relativeDistance = lastRelative - firstRelative
+    const initialTangent = relativeSpeed * captureTime / relativeDistance
+    const lastBall = lastWheel + pocketAngle + lastRelative
     const started = performance.now()
 
     if (document.hidden) {
-      draw(lastWheel, lastBall)
+      draw(lastWheel, lastBall, 112)
       return Promise.resolve()
     }
 
@@ -119,15 +132,21 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
         frame.current = null
         motionTimeout.current = null
         finishMotion.current = null
-        draw(lastWheel, lastBall)
+        draw(lastWheel, lastBall, 112)
         resolve()
       }
       finishMotion.current = complete
       motionTimeout.current = window.setTimeout(complete, duration + 250)
       function tick(now: number) {
         const progress = Math.min(1, (now - started) / duration)
-        const eased = 1 - (1 - progress) ** 3
-        draw(firstWheel + (lastWheel - firstWheel) * eased, firstBall + (lastBall - firstBall) * eased)
+        const wheelDegrees = firstWheel + distance * (2 * progress - progress ** 2)
+        const capture = Math.min(1, (now - started) / captureTime)
+        const relativeProgress = (3 - 2 * capture) * capture ** 2
+          + initialTangent * (capture ** 3 - 2 * capture ** 2 + capture)
+        const ballDegrees = wheelDegrees + pocketAngle + firstRelative + relativeDistance * relativeProgress
+        const drop = Math.min(1, Math.max(0, (progress - 0.58) / 0.24))
+        // Once the ball reaches the pocket, it travels with that same sector.
+        draw(wheelDegrees, ballDegrees, 144 - 32 * drop ** 2 * (3 - 2 * drop))
         if (progress < 1) frame.current = requestAnimationFrame(tick)
         else complete()
       }
@@ -148,7 +167,7 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
       if (!mounted.current || !next) return
       const number = resultNumber(next)
       if (number !== null) {
-        if (reduced) draw((360 - pockets.indexOf(number) * step) % 360, 0)
+        if (reduced) draw((360 - pockets.indexOf(number) * step) % 360, 0, 112)
         else await stopOn(number)
       }
       if (mounted.current) setResult(next)
@@ -168,70 +187,57 @@ export function RoulettePage({ game, balance, amount, choice, busy, blocked = fa
 
   return (
     <div className="roulette-page">
-      <header className="game-page-heading roulette-heading">
-        <div><h1>{game.name}</h1><p>Европейское колесо · одно зеро · 37 секторов</p></div>
+      <header className="game-page-heading">
+        <div><h1 className="game-page-heading__title">{game.name}</h1><p className="game-page-heading__description">Европейское колесо · одно зеро · 37 секторов</p></div>
       </header>
 
-      <section className="roulette-table" aria-label="Игровой стол рулетки">
-        <div className="roulette-wheel-stage">
-          <div className="roulette-wheel" role="img" aria-label={spinning ? 'Колесо вращается' : number === null ? 'Колесо готово к игре' : `Шарик остановился на ${number}, ${color === 'zero' ? 'зеро' : color === 'red' ? 'красное' : 'чёрное'}`}>
-            <svg className="roulette-wheel-art" viewBox="0 0 320 320" aria-hidden="true">
-              <defs>
-                <radialGradient id="roulette-wood"><stop stopColor="#251b12" /><stop offset=".78" stopColor="#4a2b18" /><stop offset="1" stopColor="#191610" /></radialGradient>
-                <radialGradient id="roulette-hub"><stop stopColor="#51412b" /><stop offset=".58" stopColor="#231e18" /><stop offset="1" stopColor="#a17c43" /></radialGradient>
-              </defs>
-              <circle cx="160" cy="160" r="157" fill="#0b100d" stroke="#aa8950" strokeWidth="3" />
-              <circle cx="160" cy="160" r="148" fill="#393423" stroke="#c8a765" strokeWidth="3" />
-              <circle cx="160" cy="160" r="140" fill="#0e1410" stroke="#66583d" strokeWidth="2" />
-              <g ref={rotor} className="roulette-rotor">
-                <circle cx="160" cy="160" r="136" fill="url(#roulette-wood)" />
+      <section className="roulette-page__table" aria-label="Игровой стол рулетки">
+        <div className="roulette-page__wheel-stage">
+          <div className="roulette-page__wheel" role="img" aria-label={spinning ? 'Колесо вращается' : number === null ? 'Колесо готово к игре' : `Шарик остановился на ${number}, ${color === 'zero' ? 'зеро' : color === 'red' ? 'красное' : 'чёрное'}`}>
+            <svg className="roulette-page__wheel-art" viewBox="0 0 320 320" aria-hidden="true">
+              <circle cx="160" cy="160" r="154" fill="#6b5b42" />
+              <circle cx="160" cy="160" r="149" fill="#252923" />
+              <g ref={rotor} className="roulette-page__rotor">
                 {pockets.map((pocket, index) => (
                   <g key={pocket}>
-                    <path d={sector(index)} className={`roulette-sector roulette-sector--${colorOf(pocket)}`} />
-                    <text x="160" y="42" transform={`rotate(${index * step} 160 160)`} className="roulette-sector-number">{pocket}</text>
+                    <path d={sector(index)} className={`roulette-page__sector roulette-page__sector--${colorOf(pocket)}`} />
+                    <text x="160" y="35" transform={`rotate(${index * step} 160 160)`} className="roulette-page__sector-number">{pocket}</text>
                   </g>
                 ))}
-                <circle cx="160" cy="160" r="104" fill="url(#roulette-wood)" stroke="#b3945c" strokeWidth="4" />
-                <circle cx="160" cy="160" r="83" fill="#11251b" stroke="#5d5034" strokeWidth="2" />
-                {Array.from({ length: 8 }, (_, index) => <path key={index} d="M160 81 L160 126" transform={`rotate(${index * 45} 160 160)`} stroke="#a9854f" strokeWidth="3" />)}
-                <circle cx="160" cy="160" r="35" fill="url(#roulette-hub)" stroke="#d0b378" strokeWidth="2" />
+                <circle cx="160" cy="160" r="105" fill="#36372c" />
+                <path d="M160 114V206M114 160H206" stroke="#938261" strokeWidth="5" strokeLinecap="round" />
+                <circle cx="160" cy="160" r="14" fill="#baa375" />
               </g>
+              <g className="roulette-page__ball-orbit" ref={ball}><circle ref={ballMarker} className="roulette-page__ball" cx="160" cy="16" r="3.6" /></g>
             </svg>
-            <div className="roulette-ball-orbit" ref={ball} aria-hidden="true"><span className="roulette-ball" /></div>
-            <span className="roulette-pointer" aria-hidden="true" />
-            <div className={`roulette-wheel-center${color ? ` roulette-wheel-center--${color}` : ''}`} aria-hidden="true">
-              <strong>{spinning ? '•' : number ?? 'N'}</strong>
-              <small>{spinning ? 'В ИГРЕ' : number === null ? 'NOIR' : 'ВЫПАЛО'}</small>
-            </div>
           </div>
         </div>
 
-        <div className="roulette-betting">
-          <div className="roulette-betting-head"><h2>Исход ставки</h2><p>Выбери цвет или зеро. В выплату уже входит ставка.</p></div>
-          <div className="roulette-choice-list" role="group" aria-label="Исход ставки">
+        <div className="roulette-page__betting">
+          <div className="roulette-page__betting-head"><h2>Исход ставки</h2><p>Выплата включает ставку.</p></div>
+          <div className="roulette-page__choice-list" role="group" aria-label="Исход ставки">
             {choices.map((option) => (
-              <button className={`roulette-choice roulette-choice--${option.id}${choice === option.id ? ' is-selected' : ''}`} type="button" key={option.id} aria-pressed={choice === option.id} disabled={busy || blocked || spinning} onClick={() => onChoice(option.id)}>
-                <span className="roulette-choice-chip" aria-hidden="true" />
-                <span className="roulette-choice-copy"><strong>{option.label}</strong><small>{option.detail}</small></span>
-                <span className="roulette-choice-odds">{option.odds}</span>
+              <button className={`roulette-page__choice roulette-page__choice--${option.id}${choice === option.id ? ' roulette-page__choice--selected' : ''}`} type="button" key={option.id} aria-pressed={choice === option.id} disabled={busy || blocked || spinning} onClick={() => onChoice(option.id)}>
+                <span className="roulette-page__choice-chip" aria-hidden="true" />
+                <span className="roulette-page__choice-copy"><strong>{option.label}</strong><small>{option.detail}</small></span>
+                <span className="roulette-page__choice-odds">{option.odds}</span>
               </button>
             ))}
           </div>
-          <div className="roulette-selection"><span>ВЫБРАНО</span><strong>{choices.find((option) => option.id === choice)?.label}</strong><span>× {choice === 'zero' ? 36 : 2}</span></div>
+          <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} disabled={blocked} layout="roulette" actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
         </div>
       </section>
 
-      <div className="roulette-outcome" aria-live="polite">
+      <div className="roulette-page__outcome" aria-live="polite">
         {result ? (
-          <section className={`roulette-result roulette-result--${color}${result.profit > 0 ? ' is-positive' : ''}`}>
-            <span className="roulette-result-number">{number ?? '—'}</span>
-            <div className="roulette-result-copy"><span>ПОСЛЕДНИЙ РАУНД</span><strong>{result.message}</strong><small>{result.details}</small></div>
-            <div className="roulette-result-money"><span>Выплата {result.payout.toLocaleString('ru-RU')}</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div>
+          <section className={`roulette-page__result roulette-page__result--${color}${result.profit > 0 ? ' roulette-page__result--positive' : ''}`}>
+            <span className="roulette-page__result-number">{number ?? '—'}</span>
+            <div className="roulette-page__result-copy"><span>ПОСЛЕДНИЙ РАУНД</span><strong>{result.message}</strong><small>{result.details}</small></div>
+            <div className="roulette-page__result-money"><span>Выплата {result.payout.toLocaleString('ru-RU')}</span><div><span>Итог</span><strong>{result.profit > 0 ? '+' : ''}{result.profit.toLocaleString('ru-RU')}</strong></div></div>
           </section>
-        ) : <div className="roulette-ready" role="status"><span className={`roulette-ready-light${spinning ? ' is-active' : ''}`} />{blocked ? 'Рулетка будет доступна после раздачи блэкджека.' : spinning ? 'Шарик вращается…' : 'Выбери исход и укажи ставку.'}</div>}
+        ) : <div className="roulette-page__ready" role="status">{blocked ? 'Заверши раздачу блэкджека, чтобы играть в рулетку.' : spinning ? 'Колесо вращается…' : ''}</div>}
       </div>
 
-      <BetControl amount={amount} balance={balance} minimum={game.minimum_bet} maximum={game.maximum_bet} busy={busy || spinning} disabled={blocked} actionLabel="Крутить колесо" onAmountChange={onAmountChange} onSubmit={() => void playRound()} />
     </div>
   )
 }

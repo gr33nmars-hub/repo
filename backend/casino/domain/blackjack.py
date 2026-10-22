@@ -153,7 +153,7 @@ class Blackjack:
         rng: RandomSource | None = None,
         rules: GameRules | None = None,
         blackjack_rules: BlackjackRules | None = None,
-    ):
+    ) -> None:
         self._rng = rng if rng is not None else SecureRandom()
         self.rules = rules if rules is not None else GameRules()
         self.blackjack_rules = blackjack_rules if blackjack_rules is not None else BlackjackRules()

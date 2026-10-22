@@ -98,7 +98,7 @@ class SlotMachine(CasinoGame):
         rng: RandomSource | None = None,
         rules: GameRules | None = None,
         slot_rules: SlotRules | None = None,
-    ):
+    ) -> None:
         super().__init__(rng, rules)
         self.slot_rules = slot_rules or SlotRules()
         self._payouts = dict(self.slot_rules.triples)

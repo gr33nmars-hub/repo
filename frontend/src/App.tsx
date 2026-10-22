@@ -1,14 +1,44 @@
-import { useState, type ReactNode } from 'react'
+import { Component, lazy, startTransition, Suspense, useState, type ReactNode } from 'react'
 import { AppShell, type RoomRoute } from './components/shell/AppShell'
 import { LobbyPage } from './components/lobby/LobbyPage'
-import { BlackjackPage } from './features/blackjack/BlackjackPage'
-import { RoulettePage } from './features/roulette/RoulettePage'
-import { SlotsPage } from './features/slots/SlotsPage'
-import { HistoryPage } from './features/history/HistoryPage'
 import { useCasino } from './hooks/useCasino'
 import type { RouletteChoice } from './types'
 import './styles/shell.css'
 import './features/shared/game-ui.css'
+
+const roomModules = {
+  blackjack: () => import('./features/blackjack/BlackjackPage'),
+  roulette: () => import('./features/roulette/RoulettePage'),
+  slots: () => import('./features/slots/SlotsPage'),
+  history: () => import('./features/history/HistoryPage'),
+}
+const BlackjackPage = lazy(() => roomModules.blackjack().then((module) => ({ default: module.BlackjackPage })))
+const RoulettePage = lazy(() => roomModules.roulette().then((module) => ({ default: module.RoulettePage })))
+const SlotsPage = lazy(() => roomModules.slots().then((module) => ({ default: module.SlotsPage })))
+const HistoryPage = lazy(() => roomModules.history().then((module) => ({ default: module.HistoryPage })))
+
+function preloadRoom(room: RoomRoute) {
+  if (room !== 'lobby') void roomModules[room]().catch(() => {
+    // Opening the screen reports a load failure through RoomErrorBoundary.
+  })
+}
+
+class RoomErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  render() {
+    if (this.state.failed) return <section className="game-unavailable" role="alert">
+      <h1>Не удалось открыть экран</h1>
+      <p>Перезапусти приложение и попробуй снова.</p>
+      <button className="game-action--secondary" type="button" onClick={() => window.location.reload()}>Перезапустить</button>
+    </section>
+    return this.props.children
+  }
+}
 
 function App() {
   const casino = useCasino()
@@ -31,11 +61,15 @@ function App() {
     setBet(value.trim() ? Number(value) : 0)
   }
 
+  function navigate(next: RoomRoute) {
+    startTransition(() => setRoom(next))
+  }
+
   const unavailablePage = (
     <section className="game-unavailable" role="status">
       <h1>Не удалось загрузить стол</h1>
       <p>Обнови игру и попробуй снова.</p>
-      <button className="game-action-secondary" type="button" onClick={() => void casino.refresh()}>
+      <button className="game-action--secondary" type="button" onClick={() => void casino.refresh()}>
         Повторить
       </button>
     </section>
@@ -49,13 +83,13 @@ function App() {
           loading={!state && !casino.error}
           error={!state ? casino.error : null}
           onRetry={() => void casino.refresh()}
-          onOpenLobby={() => setRoom('lobby')}
+          onOpenLobby={() => navigate('lobby')}
         />
       )
       break
     case 'lobby':
       if (state) {
-        gamePage = <LobbyPage state={state} onOpen={setRoom} onRetry={() => void casino.refresh()} />
+        gamePage = <LobbyPage state={state} onOpen={navigate} onRetry={() => void casino.refresh()} />
       }
       break
     case 'blackjack':
@@ -121,20 +155,24 @@ function App() {
   }
 
   return (
-    <AppShell room={room} player={state ? { ...state.player, balance: shownBalance } : null} balanceHeld={room === 'slots' && slotHeldBalance !== null} isConnected={Boolean(state)} isBusy={casino.busy || slotHeldBalance !== null} canRefill={Boolean(state && slotHeldBalance === null && refillMinimum > 0 && state.player.balance < refillMinimum)} error={room === 'history' && !state ? null : casino.error} retryAvailable={casino.retryAvailable} onNavigate={setRoom} onRetry={() => void casino.retry()} onRefill={() => void casino.refill()}>
-      {gamePage ?? (casino.error ? (
-        <section className="lobby-empty lobby-empty--connection" aria-live="polite">
-          <h1>Нет связи с игрой</h1>
-          <p>Проверь подключение и попробуй снова.</p>
-          <button type="button" onClick={() => void casino.refresh()}>Подключиться снова</button>
-        </section>
-      ) : (
-        <section className="app-loading" aria-live="polite" aria-busy="true">
-          <span className="app-loading-mark" aria-hidden="true">N</span>
-          <strong>Запускаем игру</strong>
-          <span>Подключаемся к серверу…</span>
-        </section>
-      ))}
+    <AppShell room={room} player={state ? { ...state.player, balance: shownBalance } : null} balanceHeld={room === 'slots' && slotHeldBalance !== null} isConnected={Boolean(state)} isBusy={casino.busy || slotHeldBalance !== null} canRefill={Boolean(state && slotHeldBalance === null && refillMinimum > 0 && state.player.balance < refillMinimum)} error={room === 'history' && !state ? null : casino.error} retryAvailable={casino.retryAvailable} onNavigate={navigate} onRoomIntent={preloadRoom} onRetry={() => void casino.retry()} onRefill={() => void casino.refill()}>
+      <Suspense fallback={<section className="app-loading" role="status" aria-busy="true"><strong>Загружаем экран…</strong></section>}>
+        <RoomErrorBoundary key={room}>
+          {gamePage ?? (casino.error ? (
+            <section className="lobby-page__empty lobby-page__empty--connection" aria-live="polite">
+              <h1>Нет связи с игрой</h1>
+              <p>Проверь подключение и попробуй снова.</p>
+              <button type="button" onClick={() => void casino.refresh()}>Подключиться снова</button>
+            </section>
+          ) : (
+            <section className="app-loading" aria-live="polite" aria-busy="true">
+              <span className="app-loading__mark" aria-hidden="true">N</span>
+              <strong>Запускаем игру</strong>
+              <span>Подключаемся к серверу…</span>
+            </section>
+          ))}
+        </RoomErrorBoundary>
+      </Suspense>
     </AppShell>
   )
 }

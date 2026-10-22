@@ -2,10 +2,10 @@ import type { GameId } from '../../types'
 
 export function GameMark({ game, className }: { game: GameId; className?: string }) {
   return (
-    <svg className={className} data-game-mark={game} viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+    <svg className={`game-mark${className ? ` ${className}` : ''}`} data-game-mark={game} viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
       {game === 'blackjack' && <>
         <path d="M18 7h28a4 4 0 0 1 4 4v42H14V11a4 4 0 0 1 4-4Z" />
-        <text className="game-mark-number" x="32" y="39" textAnchor="middle">21</text>
+        <text className="game-mark__number" x="32" y="39" textAnchor="middle">21</text>
       </>}
       {game === 'roulette' && <>
         <circle cx="32" cy="32" r="24.5" />
@@ -17,9 +17,9 @@ export function GameMark({ game, className }: { game: GameId; className?: string
       </>}
       {game === 'slots' && <>
         <path d="M8 8h48v48H8zM24 8v48m16-48v48" />
-        <text className="game-mark-number" x="16" y="39" textAnchor="middle">7</text>
-        <text className="game-mark-number" x="32" y="39" textAnchor="middle">7</text>
-        <text className="game-mark-number" x="48" y="39" textAnchor="middle">7</text>
+        <text className="game-mark__number" x="16" y="39" textAnchor="middle">7</text>
+        <text className="game-mark__number" x="32" y="39" textAnchor="middle">7</text>
+        <text className="game-mark__number" x="48" y="39" textAnchor="middle">7</text>
       </>}
     </svg>
   )

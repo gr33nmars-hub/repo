@@ -1,9 +1,5 @@
-import type { CSSProperties } from 'react'
-
 interface PlayingCardProps {
   card: string
-  animate?: boolean
-  order?: number
 }
 
 const suitNames: Record<string, string> = { '♠': 'пики', '♥': 'черви', '♣': 'трефы', '♦': 'бубны' }
@@ -16,15 +12,15 @@ const suitPaths: Record<string, string> = {
 
 function SuitMark({ suit }: { suit: string }) {
   return (
-    <svg className={`blackjack-card-suit${suit === '♥' || suit === '♦' ? ' is-red' : ''}`} viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={`blackjack-page__card-suit${suit === '♥' || suit === '♦' ? ' blackjack-page__card-suit--red' : ''}`} viewBox="0 0 24 24" aria-hidden="true">
       {suitPaths[suit] && <path d={suitPaths[suit]} />}
     </svg>
   )
 }
 
-export function PlayingCard({ card, animate = false, order = 0 }: PlayingCardProps) {
+export function PlayingCard({ card }: PlayingCardProps) {
   if (card === 'hidden') {
-    return <div className="blackjack-card is-hidden" role="img" aria-label="Закрытая карта дилера"><span className="blackjack-card-back">N</span></div>
+    return <div className="blackjack-page__card blackjack-page__card--hidden" role="img" aria-label="Закрытая карта дилера"><span className="blackjack-page__card-back">NOIR</span></div>
   }
 
   const suit = card.slice(-1)
@@ -32,10 +28,10 @@ export function PlayingCard({ card, animate = false, order = 0 }: PlayingCardPro
   const name = `${rank} ${suitNames[suit] ?? 'карта'}`
 
   return (
-    <div className={`blackjack-card${suit === '♥' || suit === '♦' ? ' is-red' : ''}${animate ? ' is-dealing' : ''}`} style={{ '--deal-order': order } as CSSProperties} role="img" aria-label={name}>
-      <span className="blackjack-card-corner">{rank}<SuitMark suit={suit} /></span>
+    <div className={`blackjack-page__card${suit === '♥' || suit === '♦' ? ' blackjack-page__card--red' : ''}`} role="img" aria-label={name}>
+      <span className="blackjack-page__card-corner">{rank}<SuitMark suit={suit} /></span>
       <SuitMark suit={suit} />
-      <span className="blackjack-card-corner is-inverted">{rank}<SuitMark suit={suit} /></span>
+      <span className="blackjack-page__card-corner blackjack-page__card-corner--inverted">{rank}<SuitMark suit={suit} /></span>
     </div>
   )
 }

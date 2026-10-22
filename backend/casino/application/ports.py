@@ -29,7 +29,7 @@ class CasinoReadUnitOfWork(Protocol):
 
     def get_request_response(
         self, request_key: str, *, signature: str | None = None
-    ) -> dict | None: ...
+    ) -> dict[str, object] | None: ...
 
 
 class CasinoUnitOfWork(CasinoReadUnitOfWork, Protocol):
@@ -47,9 +47,9 @@ class CasinoUnitOfWork(CasinoReadUnitOfWork, Protocol):
         request_key: str,
         signature: str,
         ledger_entries: list[LedgerMovement],
-        response: dict,
+        response: dict[str, object],
         round_id: str | None = None,
-    ) -> dict: ...
+    ) -> dict[str, object]: ...
 
 
 class CasinoRepository(Protocol):
